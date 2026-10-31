@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "errors": [
+    {"code":"ERR_PROTOCOL","retryable":false},{"code":"ERR_SCHEMA","retryable":false},{"code":"ERR_UNKNOWN_CONTROL","retryable":false},{"code":"ERR_UNKNOWN_TAG","retryable":false},{"code":"ERR_INVALID_VALUE","retryable":false},{"code":"ERR_OUT_OF_RANGE","retryable":false},{"code":"ERR_ROLE","retryable":false},{"code":"ERR_AUTH","retryable":false},{"code":"ERR_RATE_LIMIT","retryable":true},{"code":"ERR_SIM_PAUSED","retryable":true},{"code":"ERR_UNPOWERED","retryable":true},{"code":"ERR_INTERLOCK","retryable":true},{"code":"ERR_MODE_BLOCK","retryable":true},{"code":"ERR_SEQUENCE_PERMISSIVE","retryable":true},{"code":"ERR_MALFUNCTION","retryable":true},{"code":"ERR_ALREADY_IN_STATE","retryable":false},{"code":"ERR_BUSY","retryable":true},{"code":"ERR_GUARD_NOT_OPEN","retryable":true},{"code":"ERR_TWO_BUTTON_TIMEOUT","retryable":true},{"code":"ERR_MUTUALLY_EXCLUSIVE","retryable":true},{"code":"ERR_UNSUPPORTED","retryable":false},{"code":"ERR_INTERNAL","retryable":true}
+  ]
+}

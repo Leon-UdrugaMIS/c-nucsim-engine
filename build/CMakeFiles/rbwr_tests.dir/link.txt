@@ -1,0 +1,1 @@
+/usr/bin/c++ -g CMakeFiles/rbwr_tests.dir/tests/smoke_test.cpp.o -o rbwr_tests  librbwr_core.a 

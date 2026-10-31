@@ -1,0 +1,15 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://rbwr.example/schemas/command.schema.json",
+  "oneOf":[
+    {"$ref":"#/$defs/control"},
+    {"$ref":"#/$defs/request"},
+    {"$ref":"#/$defs/sim"}
+  ],
+  "$defs":{
+    "base":{"type":"object","required":["type","req_id"],"properties":{"type":{"type":"string"},"req_id":{"type":"string","minLength":1}},"additionalProperties":true},
+    "control":{"allOf":[{"$ref":"#/$defs/base"},{"properties":{"type":{"enum":["toggle","selector","rate_switch","set_percent","button","multi_select"]},"control_id":{"type":"string"}},"required":["control_id"]}]},
+    "request":{"allOf":[{"$ref":"#/$defs/base"},{"properties":{"type":{"enum":["request_snapshot","request_registry","resume","ping","subscribe","unsubscribe"]}}}]},
+    "sim":{"allOf":[{"$ref":"#/$defs/base"},{"properties":{"type":{"enum":["sim","scenario","malfunction","set_tag"]}}}]}
+  }
+}

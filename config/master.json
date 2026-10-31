@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "protocol_version": "1.0.0",
+  "tick_ms": 50,
+  "fast_subcycles": 5,
+  "slow_period_s": 1.0,
+  "seed": 12345,
+  "publish_groups": {
+    "electrical": {"hz": 10},
+    "reactor_fast": {"hz": 10},
+    "reactor_slow": {"hz": 1},
+    "fuel_grid": {"hz": 2},
+    "turbine": {"hz": 10},
+    "condenser": {"hz": 5},
+    "feedwater": {"hz": 5},
+    "sync": {"hz": 20},
+    "annunciators": {"event": true}
+  },
+  "network": {"port": 8765, "queue_depth": 2000, "ring_buffer": 10000, "ping_s": 5, "max_msg_bytes": 1048576},
+  "limits": {"commands_per_s": 50, "burst": 100, "rate_keepalive_weight": 0.25, "deadman_ms": 600},
+  "files": ["electrical.json", "reactor.json", "turbine.json", "condenser.json", "feedwater.json", "eccs.json", "annunciators.json", "sensors.json", "malfunctions.json"]
+}

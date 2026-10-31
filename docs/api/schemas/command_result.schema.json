@@ -1,0 +1,5 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://rbwr.example/schemas/command_result.schema.json",
+  "allOf":[{"$ref":"envelope.schema.json"},{"type":"object","required":["req_id","ok"],"properties":{"type":{"const":"command_result"},"req_id":{"type":"string"},"ok":{"type":"boolean"},"error":{"type":"object","required":["code","control_id","detail","hint"]},"applied_tick":{"type":"integer","minimum":0},"new_value":{},"settling_estimate_s":{"type":"number","minimum":0}}}]
+}

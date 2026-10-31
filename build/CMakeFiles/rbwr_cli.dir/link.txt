@@ -1,0 +1,1 @@
+/usr/bin/c++ -g CMakeFiles/rbwr_cli.dir/src/cli/main.cpp.o -o rbwr_cli  librbwr_core.a 

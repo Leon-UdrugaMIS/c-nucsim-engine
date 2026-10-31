@@ -1,0 +1,1 @@
+/usr/bin/c++ -g CMakeFiles/rbwr_server.dir/src/server/main.cpp.o -o rbwr_server  librbwr_core.a 

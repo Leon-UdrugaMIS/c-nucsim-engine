@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "annunciators": [
+    {"id":"ann.rps.reactor_trip_state","text":"REACTOR TRIP STATE","panels":["rps","rmcp"],"priority":"critical","condition_expression":"rps.scram_active == true","on_delay_s":0,"off_delay_s":0,"latching":true,"reset_requirement":"operator reset after trip cause clears","audible":"continuous"},
+    {"id":"ann.rps.half_reactor_trip","text":"HALF REACTOR TRIP","panels":["rps","rmcp"],"priority":"critical","condition_expression":"rps.channel_a_tripped != rps.channel_b_tripped","on_delay_s":0,"off_delay_s":0,"latching":false,"reset_requirement":"none","audible":"continuous"},
+    {"id":"ann.rmcp.low_reactor_water_level","text":"LOW REACTOR WATER LEVEL","panels":["mcc","eccs","rmcp"],"priority":"warning","condition_expression":"reactor.level_nr_m < (mcc.sp_reactor_level_m - 0.3)","on_delay_s":1,"off_delay_s":2,"latching":false,"reset_requirement":"none","audible":"repeating"},
+    {"id":"ann.rmcp.high_reactor_water_level","text":"HIGH REACTOR WATER LEVEL","panels":["mcc","rmcp"],"priority":"warning","condition_expression":"reactor.level_nr_m > (mcc.sp_reactor_level_m + 0.3)","on_delay_s":1,"off_delay_s":2,"latching":false,"reset_requirement":"none","audible":"repeating"},
+    {"id":"ann.rmcp.high_rpv_pressure","text":"HIGH RPV PRESSURE","panels":["srv","rmcp"],"priority":"warning","condition_expression":"reactor.pressure_kpa > 7600","on_delay_s":0,"off_delay_s":2,"latching":false,"reset_requirement":"none","audible":"repeating"},
+    {"id":"ann.rps.reactor_pressure_high_trip","text":"RPS REACTOR PRESSURE HIGH TRIP","panels":["rps"],"priority":"critical","condition_expression":"reactor.pressure_kpa >= 7900","on_delay_s":0,"off_delay_s":0,"latching":true,"reset_requirement":"trip reset sequence","audible":"continuous"},
+    {"id":"ann.cond.no_condenser_vacuum","text":"NO CONDENSER VACUUM","panels":["cond","turb"],"priority":"critical","condition_expression":"cond.pressure_mbar > 150","on_delay_s":1,"off_delay_s":2,"latching":false,"reset_requirement":"none","audible":"continuous"},
+    {"id":"ann.cond.low_condenser_vacuum","text":"LOW CONDENSER VACUUM","panels":["cond"],"priority":"warning","condition_expression":"cond.pressure_mbar > 80","on_delay_s":2,"off_delay_s":3,"latching":false,"reset_requirement":"none","audible":"repeating"},
+    {"id":"ann.elec.bus_a_unpowered","text":"BUS A UNPOWERED","panels":["elec"],"priority":"warning","condition_expression":"elec.bus.a.state != 'ENERGIZED'","on_delay_s":0,"off_delay_s":1,"latching":false,"reset_requirement":"none","audible":"repeating"},
+    {"id":"ann.elec.bus_b_unpowered","text":"BUS B UNPOWERED","panels":["elec"],"priority":"warning","condition_expression":"elec.bus.b.state != 'ENERGIZED'","on_delay_s":0,"off_delay_s":1,"latching":false,"reset_requirement":"none","audible":"repeating"},
+    {"id":"ann.elec.bus_s_unpowered","text":"BUS S UNPOWERED","panels":["elec"],"priority":"critical","condition_expression":"elec.bus.s.state != 'ENERGIZED'","on_delay_s":0,"off_delay_s":1,"latching":false,"reset_requirement":"none","audible":"continuous"},
+    {"id":"ann.elec.dc_bus_unpowered","text":"DC BUS UNPOWERED","panels":["elec"],"priority":"warning","condition_expression":"elec.bus.dc.state != 'ENERGIZED'","on_delay_s":0,"off_delay_s":1,"latching":false,"reset_requirement":"none","audible":"repeating"},
+    {"id":"ann.elec.offsite_power_connection_loss","text":"OFFSITE POWER CONNECTION LOSS","panels":["elec","rps"],"priority":"critical","condition_expression":"elec.offsite_power_available == false","on_delay_s":2,"off_delay_s":1,"latching":false,"reset_requirement":"none","audible":"continuous"},
+    {"id":"ann.elec.main_battery_critically_low","text":"MAIN BATTERY CRITICALLY LOW","panels":["elec"],"priority":"critical","condition_expression":"elec.battery_pct <= 35","on_delay_s":0,"off_delay_s":2,"latching":false,"reset_requirement":"none","audible":"continuous"},
+    {"id":"ann.elec.diesel_generator_active","text":"DIESEL GENERATOR ACTIVE","panels":["elec"],"priority":"info","condition_expression":"elec.edg.active == true","on_delay_s":0,"off_delay_s":0,"latching":false,"reset_requirement":"none","audible":"none"},
+    {"id":"ann.eccs.rcic_turbine_running","text":"RCIC TURBINE RUNNING","panels":["eccs","rmcp"],"priority":"info","condition_expression":"eccs.rcic_turbine_rpm > 0","on_delay_s":0,"off_delay_s":1,"latching":false,"reset_requirement":"none","audible":"none"},
+    {"id":"ann.eccs.lpci_active","text":"LPCI ACTIVE","panels":["eccs","rmcp"],"priority":"info","condition_expression":"eccs.lpci_flow_kgs > 0","on_delay_s":0,"off_delay_s":1,"latching":false,"reset_requirement":"none","audible":"none"},
+    {"id":"ann.eccs.sdc_1_active","text":"SDC-1 ACTIVE","panels":["eccs","aux"],"priority":"info","condition_expression":"eccs.rhr1_mode == 'RHR' && eccs.rhr1_flow_kgs > 0","on_delay_s":0,"off_delay_s":1,"latching":false,"reset_requirement":"none","audible":"none"},
+    {"id":"ann.eccs.sdc_2_active","text":"SDC-2 ACTIVE","panels":["eccs","aux"],"priority":"info","condition_expression":"eccs.rhr2_mode == 'RHR' && eccs.rhr2_flow_kgs > 0","on_delay_s":0,"off_delay_s":1,"latching":false,"reset_requirement":"none","audible":"none"},
+    {"id":"ann.turb.high_turbine_vibration","text":"HIGH TURBINE VIBRATION","panels":["turb"],"priority":"warning","condition_expression":"turb.vibration_um > 100","on_delay_s":1,"off_delay_s":2,"latching":false,"reset_requirement":"none","audible":"repeating"},
+    {"id":"ann.turb.turbine_trip","text":"TURBINE TRIP","panels":["turb"],"priority":"critical","condition_expression":"turb.state == 'TRIPPED'","on_delay_s":0,"off_delay_s":0,"latching":true,"reset_requirement":"turbine reset sequence","audible":"continuous"},
+    {"id":"ann.turb.generator_reverse_power","text":"GENERATOR REVERSE POWER","panels":["turb"],"priority":"warning","condition_expression":"elec.generator_load_mw < -18.22","on_delay_s":10,"off_delay_s":2,"latching":false,"reset_requirement":"none","audible":"repeating"},
+    {"id":"ann.mcc.feedwater_pump_trip","text":"FEEDWATER PUMP TRIP","panels":["mcc","rmcp"],"priority":"critical","condition_expression":"fw.pump_trip == true","on_delay_s":0,"off_delay_s":0,"latching":false,"reset_requirement":"none","audible":"continuous"},
+    {"id":"ann.dea.low_low_deaerator_level","text":"LOW LOW DEAERATOR WATER LEVEL","panels":["dea"],"priority":"critical","condition_expression":"dea.level_pct <= 25","on_delay_s":1,"off_delay_s":2,"latching":false,"reset_requirement":"none","audible":"continuous"},
+    {"id":"ann.ads.system_armed","text":"ADS SYSTEM ARMED","panels":["ads"],"priority":"info","condition_expression":"ads.armed == true","on_delay_s":0,"off_delay_s":0,"latching":false,"reset_requirement":"none","audible":"none"}
+  ],
+  "generated_families": [
+    {"pattern":"ann.srv.msrv_<1..6>_open","text_source":"config/annunciators.json"},
+    {"pattern":"ann.rad.<sensor>_high","text_source":"config/annunciators.json"},
+    {"pattern":"ann.elec.<load>_fault","text_source":"config/electrical.json"}
+  ]
+}

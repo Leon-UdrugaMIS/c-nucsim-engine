@@ -1,0 +1,15 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://rbwr.example/schemas/envelope.schema.json",
+  "type":"object",
+  "required":["v","type","seq","tick","sim_time","wall_time_ms"],
+  "properties":{
+    "v":{"type":"string","pattern":"^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "type":{"type":"string"},
+    "seq":{"type":"integer","minimum":0},
+    "tick":{"type":"integer","minimum":0},
+    "sim_time":{"type":"number","minimum":0},
+    "wall_time_ms":{"type":"integer"}
+  },
+  "additionalProperties":true
+}
