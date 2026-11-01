@@ -1,18 +1,18 @@
-Start testing: Oct 31 21:37 UTC
+Start testing: Nov 01 07:30 UTC
 ----------------------------------------------------------
 1/1 Testing: rbwr_smoke
 1/1 Test: rbwr_smoke
 Command: "/workspaces/c-nucsim-engine/build/rbwr_tests"
 Directory: /workspaces/c-nucsim-engine/build
-"rbwr_smoke" start time: Oct 31 21:37 UTC
+"rbwr_smoke" start time: Nov 01 07:30 UTC
 Output:
 ----------------------------------------------------------
 <end of output>
-Test time =   0.33 sec
+Test time =   0.73 sec
 ----------------------------------------------------------
 Test Passed.
-"rbwr_smoke" end time: Oct 31 21:37 UTC
+"rbwr_smoke" end time: Nov 01 07:30 UTC
 "rbwr_smoke" time elapsed: 00:00:00
 ----------------------------------------------------------
 
-End testing: Oct 31 21:37 UTC
+End testing: Nov 01 07:30 UTC

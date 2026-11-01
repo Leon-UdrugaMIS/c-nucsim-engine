@@ -78,9 +78,11 @@ class Engine {
   [[nodiscard]] Snapshot snapshot() const;
   [[nodiscard]] std::vector<std::string> tag_ids() const;
   [[nodiscard]] std::vector<std::string> control_ids() const;
+  [[nodiscard]] std::vector<std::string> annunciator_ids() const;
   [[nodiscard]] std::vector<Event> events_since(std::uint64_t tick) const;
   void inject_malfunction(const std::string& id, bool active = true);
   [[nodiscard]] bool malfunction_active(const std::string& id) const;
+  [[nodiscard]] std::vector<std::string> malfunction_ids() const;
   void pause(bool value);
   void set_speed(double value);
   bool save(const std::string& path) const;
@@ -124,6 +126,7 @@ class Engine {
   double scram_button_b_time_ = -1.0;
   bool edg_start_commanded_ = false;
   std::string scenario_ = "cold_shutdown";
+  std::vector<int> selected_groups_;
   std::vector<Event> events_;
 };
 

@@ -10,6 +10,10 @@
 
 namespace rbwr {
 
+bool has_prefix(const std::string& value, const std::string& prefix) {
+  return value.size() >= prefix.size() && value.compare(0, prefix.size(), prefix) == 0;
+}
+
 Engine::Engine(std::string version)
     : info_{"RBWR Unit 2 simulation engine", std::move(version), 0} {
   analog_state_["nuc.rtp_pct"] = 0.0;
@@ -26,6 +30,13 @@ Engine::Engine(std::string version)
   analog_state_["eccs.rhr1_flow_kgs"] = 0.0;
   analog_state_["eccs.rhr2_flow_kgs"] = 0.0;
   analog_state_["turb.generator_synced"] = 0.0;
+  analog_state_["recirc.pump1_flow_kgs"] = 0.0;
+  analog_state_["recirc.pump2_flow_kgs"] = 0.0;
+  analog_state_["ads.armed"] = 0.0;
+  analog_state_["ads.srv1_open"] = 0.0;
+  analog_state_["ads.srv2_open"] = 0.0;
+  for (int valve = 1; valve <= 6; ++valve)
+    analog_state_["srv.msrv" + std::to_string(valve) + "_open"] = 0.0;
   analog_state_["cst.cst1_level_pct"] = 70.0;
   analog_state_["cst.cst2_level_pct"] = 70.0;
   analog_state_["cond.hotwell_level_pct"] = 55.0;
@@ -174,6 +185,17 @@ Engine::Engine(std::string version)
       {"-", "/", "+"});
     add("dea.steam_in_valve", "rate_switch", "/", Role::operator_role,
       {"-", "/", "+"});
+      for (int group = 1; group <= 24; ++group)
+      add("rmcp.group_select_" + std::to_string(group), "button", "false");
+      add("rmcp.group_clear", "button", "false");
+      add("aux.irm_range_selector", "selector", "1", Role::operator_role,
+        {"1", "2", "3", "4", "5", "6", "7", "8"});
+      add("aux.fuel_assembly_view_level", "selector", "AUTOMATIC", Role::operator_role,
+        {"AUTOMATIC", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"});
+      add("aux.srm_probes_depth", "rate_switch", "/", Role::operator_role,
+        {"-", "/", "+"});
+    for (int valve = 1; valve <= 6; ++valve)
+      add("srv.msrv" + std::to_string(valve), "toggle", "false");
   add("sim.pause", "sim", "false", Role::instructor);
   add("sim.resume", "sim", "false", Role::instructor);
   add("sim.speed", "sim", "1.0", Role::instructor);
@@ -336,7 +358,8 @@ CommandResult Engine::apply_command(const Command& command, Role role) {
   }
   if (command.type == "button" && command.control_id != "elec.ack" && command.control_id != "elec.sil" &&
       command.control_id != "rmcp.scram_button_a" && command.control_id != "rmcp.scram_button_b" &&
-      command.control_id != "elec.edg_startup_request") {
+      command.control_id != "elec.edg_startup_request" && command.control_id != "rmcp.group_clear" &&
+      !has_prefix(command.control_id, "rmcp.group_select_")) {
     result.code = "ERR_UNSUPPORTED";
     result.detail = "The registered button has no engine action";
     result.hint = "Use a supported control";
@@ -405,6 +428,14 @@ CommandResult Engine::apply_command(const Command& command, Role role) {
     analog_state_["elec.edg1_rpm"] = 0.0;
     edg_start_commanded_ = false;
     events_.push_back({info_.tick, "event_log", "elec.edg.1", "EVT_EDG_TRIP"});
+  } else if (command.control_id == "rmcp.group_clear") {
+    selected_groups_.clear();
+  } else if (has_prefix(command.control_id, "rmcp.group_select_")) {
+    const int group = std::stoi(command.control_id.substr(std::string("rmcp.group_select_").size()));
+    const auto found = std::find(selected_groups_.begin(), selected_groups_.end(), group);
+    if (found == selected_groups_.end()) selected_groups_.push_back(group);
+    else selected_groups_.erase(found);
+    std::sort(selected_groups_.begin(), selected_groups_.end());
   } else if (command.control_id == "sim.pause" || command.control_id == "sim.resume") {
     pause(command.control_id == "sim.pause");
   } else {
@@ -436,6 +467,13 @@ std::vector<std::string> Engine::control_ids() const {
   return result;
 }
 
+std::vector<std::string> Engine::annunciator_ids() const {
+  std::vector<std::string> result;
+  result.reserve(state_.annunciators.size());
+  for (const auto& [id, state] : state_.annunciators) result.push_back(id);
+  return result;
+}
+
 std::vector<Event> Engine::events_since(std::uint64_t tick) const {
   std::vector<Event> result;
   for (const auto& event : events_) {
@@ -454,6 +492,21 @@ void Engine::inject_malfunction(const std::string& id, bool active) {
 bool Engine::malfunction_active(const std::string& id) const {
   const auto found = malfunctions_.find(id);
   return found != malfunctions_.end() && found->second;
+}
+
+std::vector<std::string> Engine::malfunction_ids() const {
+  return {"mf.elec.loop", "mf.elec.bus_a_fault", "mf.elec.bus_b_fault",
+          "mf.elec.bus_s_fault", "mf.elec.edg1_fail_start", "mf.elec.battery_degraded",
+          "mf.rx.rod_stuck", "mf.rx.hcu_leak", "mf.rx.recirc_pump_trip",
+          "mf.rx.fuel_failure", "mf.steam.srv_stuck_open", "mf.steam.main_steam_leak",
+          "mf.ads.spurious_actuation", "mf.eccs.rcic_fail_start", "mf.eccs.rhr_pump_trip",
+          "mf.cond.loss_vacuum", "mf.cond.sjae_fail", "mf.cond.offgas_event",
+          "mf.turb.high_vibration", "mf.turb.bearing_failure", "mf.turb.overspeed",
+          "mf.turb.lube_oil_loss", "mf.fw.pump_trip", "mf.fw.pump_overheat",
+          "mf.fw.valve_stuck", "mf.dea.rupture_disk", "mf.wt.polisher_conductivity",
+          "mf.wt.polisher_dp_high", "mf.cst.pump_trip", "mf.tower.level_low",
+          "mf.sensor.<tag>.dead", "mf.sensor.<tag>.zero", "mf.sensor.<tag>.high",
+          "mf.sensor.<tag>.low", "mf.sensor.<tag>.drift", "mf.sensor.<tag>.noise"};
 }
 
 void Engine::pause(bool value) { state_.paused = value; }
@@ -556,6 +609,12 @@ void Engine::update_process(double dt) {
     analog_state_["cond.hotwell_level_pct"] = std::clamp(
       analog_state_["cond.hotwell_level_pct"] +
       (feedwater_running ? -0.03 : 0.01) * dt, 0.0, 100.0);
+      const bool recirc1_lined = control_value("recirc.inlet1") && control_value("recirc.outlet1");
+      const bool recirc2_lined = control_value("recirc.inlet2") && control_value("recirc.outlet2");
+      analog_state_["recirc.pump1_flow_kgs"] = bus_a && recirc1_lined &&
+        control_value("recirc.pump1") ? 4500.0 : 0.0;
+      analog_state_["recirc.pump2_flow_kgs"] = bus_a && recirc2_lined &&
+        control_value("recirc.pump2") ? 4500.0 : 0.0;
   const bool crd_running = safety && (control_value("crd.pump1") || control_value("crd.pump2"));
   const double drive_pressure = crd_running ? 8500.0 : 0.0;
   const double reactor_power = analog_state_["nuc.rtp_pct"];
@@ -564,6 +623,24 @@ void Engine::update_process(double dt) {
       (control_value("rmcp.apr_control") ? (std::stod(controls_["rmcp.apr_setpoint"]) - reactor_power) * 0.2 : 0.0), 0.0, 120.0);
   analog_state_["nuc.rtp_pct"] += (target_power - reactor_power) * std::clamp(dt * 0.5, 0.0, 1.0);
   analog_state_["reactor.pressure_kpa"] = 101.3 + analog_state_["nuc.rtp_pct"] * 69.987;
+  for (int valve = 1; valve <= 6; ++valve) {
+    const double lift_pressure = 7650.0 + static_cast<double>(valve - 1) * 50.0;
+    const bool lifted = malfunction_active("mf.steam.srv_stuck_open") ||
+      control_value("srv.msrv" + std::to_string(valve)) ||
+        analog_state_["reactor.pressure_kpa"] >= lift_pressure;
+    analog_state_["srv.msrv" + std::to_string(valve) + "_open"] = lifted ? 1.0 : 0.0;
+  }
+  const bool ads_inhibited = control_value("ads.system_inhibit");
+  const bool ads_armed = !ads_inhibited && analog_state_["reactor.level_nr_m"] <= -3.4;
+  analog_state_["ads.armed"] = ads_armed ? 1.0 : 0.0;
+  analog_state_["ads.srv1_open"] = ads_armed ? 1.0 : 0.0;
+  analog_state_["ads.srv2_open"] = ads_armed ? 1.0 : 0.0;
+  double relief_flow = 0.0;
+  for (int valve = 1; valve <= 6; ++valve)
+    relief_flow += analog_state_["srv.msrv" + std::to_string(valve) + "_open"];
+  relief_flow += analog_state_["ads.srv1_open"] + analog_state_["ads.srv2_open"];
+  analog_state_["reactor.pressure_kpa"] = std::max(
+      101.3, analog_state_["reactor.pressure_kpa"] - relief_flow * 8.0 * dt);
     const bool feedwater_fault = malfunction_active("mf.fw.pump_trip") ||
       malfunction_active("mf.fw.valve_stuck");
     const double level_rate = feedwater_fault ? -0.04 : (crd_running ? 0.002 : 0.000);
@@ -589,7 +666,8 @@ void Engine::update_process(double dt) {
     analog_state_["eccs.rhr1_flow_kgs"] = rhr_flow("eccs.rhr1_pump", "eccs.rhr1_mode", "eccs.rhr1_injection_valve");
     analog_state_["eccs.rhr2_flow_kgs"] = rhr_flow("eccs.rhr2_pump", "eccs.rhr2_mode", "eccs.rhr2_injection_valve");
     const bool rod_motion_allowed = controls_["rmcp.reactor_mode"] != "SD" &&
-        !scrammed && analog_state_["crd.drive_water_pressure_kpa"] >= 5500.0;
+      !scrammed && !malfunction_active("mf.rx.rod_stuck") &&
+      analog_state_["crd.drive_water_pressure_kpa"] >= 5500.0;
     const auto movement = held_rate_switches_.find("rmcp.group_movement");
     if (movement != held_rate_switches_.end() && rod_motion_allowed) {
       const double sign = movement->second == "WITHDRAW" ? 1.0 : movement->second == "INSERT" ? -1.0 : 0.0;
@@ -619,7 +697,12 @@ void Engine::update_process(double dt) {
     else if (target == "3600") runup_target = 3600.0;
   }
   analog_state_["turb.rpm"] += (runup_target - analog_state_["turb.rpm"]) * std::clamp(dt * 0.15, 0.0, 1.0);
-  const double condenser_target = control_value("cond.auto_control") ? 60.0 : 1013.0;
+    if (malfunction_active("mf.turb.overspeed")) analog_state_["turb.rpm"] = 4000.0;
+    analog_state_["turb.vibration_um"] = malfunction_active("mf.turb.high_vibration") ||
+      malfunction_active("mf.turb.bearing_failure") ? 150.0 : 35.0;
+    const double condenser_target = malfunction_active("mf.cond.loss_vacuum") ||
+      malfunction_active("mf.cond.sjae_fail") ? 300.0 :
+      (control_value("cond.auto_control") ? 60.0 : 1013.0);
   analog_state_["cond.pressure_mbar"] += (condenser_target - analog_state_["cond.pressure_mbar"]) * std::clamp(dt * 0.5, 0.0, 1.0);
   analog_state_["crd.drive_water_pressure_kpa"] = drive_pressure;
 }
@@ -771,6 +854,26 @@ void Engine::publish_state() {
   state_.tags["cond.hotwell_level_pct"] = {number(analog_state_["cond.hotwell_level_pct"]), "%", "GOOD"};
   state_.tags["dea.level_pct"] = {number(analog_state_["dea.level_pct"]), "%", "GOOD"};
   state_.tags["fw.flow_kgs"] = {number(analog_state_["fw.flow_kgs"]), "kg/s", "GOOD"};
+  std::ostringstream selected_groups;
+  selected_groups << '[';
+  for (std::size_t index = 0; index < selected_groups_.size(); ++index) {
+    if (index != 0) selected_groups << ',';
+    selected_groups << selected_groups_[index];
+  }
+  selected_groups << ']';
+  state_.tags["rmcp.selected_groups"] = {selected_groups.str(), "array", "GOOD"};
+  state_.tags["recirc.pump1_flow_kgs"] = {number(analog_state_["recirc.pump1_flow_kgs"]), "kg/s", "GOOD"};
+  state_.tags["recirc.pump2_flow_kgs"] = {number(analog_state_["recirc.pump2_flow_kgs"]), "kg/s", "GOOD"};
+  state_.tags["recirc.pump1_cavitation"] = {analog_state_["recirc.pump1_flow_kgs"] > 8000.0 ? "true" : "false", "", "GOOD"};
+  state_.tags["recirc.pump2_cavitation"] = {analog_state_["recirc.pump2_flow_kgs"] > 8000.0 ? "true" : "false", "", "GOOD"};
+  state_.tags["ads.armed"] = {analog_state_["ads.armed"] > 0.5 ? "true" : "false", "", "GOOD"};
+  state_.tags["ads.inhibited"] = {control_value("ads.system_inhibit") ? "true" : "false", "", "GOOD"};
+  state_.tags["ads.srv1_open"] = {analog_state_["ads.srv1_open"] > 0.5 ? "true" : "false", "", "GOOD"};
+  state_.tags["ads.srv2_open"] = {analog_state_["ads.srv2_open"] > 0.5 ? "true" : "false", "", "GOOD"};
+  for (int valve = 1; valve <= 6; ++valve) {
+    const std::string id = "srv.msrv" + std::to_string(valve) + "_open";
+    state_.tags[id] = {analog_state_[id] > 0.5 ? "true" : "false", "", "GOOD"};
+  }
   state_.tags["eccs.rcic_flow_kgs"] = {number(analog_state_["eccs.rcic_flow_kgs"]), "kg/s", "GOOD"};
   state_.tags["eccs.rcic_turbine_rpm"] = {number(analog_state_["eccs.rcic_rpm"]), "rpm", "GOOD"};
   state_.tags["eccs.rhr1_flow_kgs"] = {number(analog_state_["eccs.rhr1_flow_kgs"]), "kg/s", "GOOD"};
@@ -834,6 +937,14 @@ void Engine::publish_state() {
     } else if (malfunction_active(prefix + "high")) {
       tag.value = "1";
       tag.quality = "SUBSTITUTED";
+    } else if (malfunction_active(prefix + "drift")) {
+      const auto sensed = numeric_value(tag.value);
+      if (sensed) tag.value = std::to_string(*sensed + state_.sim_time * 0.01);
+      tag.quality = "SUBSTITUTED";
+    } else if (malfunction_active(prefix + "noise")) {
+      const auto sensed = numeric_value(tag.value);
+      if (sensed) tag.value = std::to_string(*sensed + std::sin(state_.sim_time * 17.0) * 0.1);
+      tag.quality = "SUBSTITUTED";
     }
   }
   double site_usage = safety ? 1.0 : 0.0;
@@ -877,22 +988,65 @@ void Engine::publish_state() {
     } else if (malfunction_active(prefix + "high")) {
       tag.value = "1";
       tag.quality = "SUBSTITUTED";
+    } else if (malfunction_active(prefix + "drift")) {
+      const auto sensed = numeric_value(tag.value);
+      if (sensed) tag.value = std::to_string(*sensed + state_.sim_time * 0.01);
+      tag.quality = "SUBSTITUTED";
+    } else if (malfunction_active(prefix + "noise")) {
+      const auto sensed = numeric_value(tag.value);
+      if (sensed) tag.value = std::to_string(*sensed + std::sin(state_.sim_time * 17.0) * 0.1);
+      tag.quality = "SUBSTITUTED";
     }
   }
 }
 
 void Engine::evaluate_annunciators() {
+  const auto sensed = [this](const std::string& id) {
+    const auto value = numeric_value(state_.tags[id].value);
+    return value.value_or(0.0);
+  };
   const bool bus_a = state_.tags["elec.bus.a.energized"].value == "true";
   const bool bus_s = state_.tags["elec.bus.s.energized"].value == "true";
   const std::map<std::string, bool> conditions = {
       {"ann.elec.bus_a_unpowered", !bus_a},
       {"ann.elec.bus_s_unpowered", !bus_s},
       {"ann.elec.offsite_power_connection_loss", malfunctions_["mf.elec.loop"]},
+        {"ann.elec.bus_b_unpowered", !state_.tags["elec.bus.b.energized"].value.empty() &&
+          state_.tags["elec.bus.b.energized"].value != "true"},
       {"ann.elec.main_battery_critically_low", analog_state_["elec.battery_pct"] <= 35.0},
       {"ann.elec.diesel_generator_active", analog_state_["elec.edg1_state"] == 2.0},
       {"ann.eccs.rcic_turbine_running", analog_state_["eccs.rcic_rpm"] > 0.0},
       {"ann.eccs.lpci_active", analog_state_["eccs.rhr1_flow_kgs"] > 0.0 || analog_state_["eccs.rhr2_flow_kgs"] > 0.0},
       {"ann.rmcp.low_reactor_water_level", analog_state_["reactor.level_nr_m"] < -0.3},
+      {"ann.rmcp.high_reactor_water_level", sensed("reactor.level_nr_m") > 0.3},
+      {"ann.rmcp.high_rpv_pressure", sensed("reactor.pressure_kpa") > 7600.0},
+      {"ann.rps.reactor_pressure_high_trip", sensed("reactor.pressure_kpa") >= 7900.0},
+      {"ann.rps.reactor_level_low_trip", sensed("reactor.level_nr_m") <= -0.9},
+      {"ann.cond.no_condenser_vacuum", sensed("cond.pressure_mbar") > 150.0},
+      {"ann.cond.low_condenser_vacuum", sensed("cond.pressure_mbar") > 80.0},
+      {"ann.turb.high_turbine_rpm", sensed("turb.rpm") >= 3960.0},
+      {"ann.turb.high_generator_load", analog_state_["nuc.rtp_pct"] > 100.0},
+      {"ann.mcc.low_hotwell_level", analog_state_["cond.hotwell_level_pct"] <= 25.0},
+      {"ann.mcc.low_deaerator_water_level", analog_state_["dea.level_pct"] <= 40.0},
+      {"ann.dea.low_low_water_level", analog_state_["dea.level_pct"] <= 25.0},
+      {"ann.mcc.low_feedwater_temperature", analog_state_["fw.temp_c"] < 60.0},
+      {"ann.mcc.feedwater_pump_trip", malfunction_active("mf.fw.pump_trip")},
+      {"ann.cst.cst1_low_level", analog_state_["cst.cst1_level_pct"] <= 15.0},
+      {"ann.cst.cst2_low_level", analog_state_["cst.cst2_level_pct"] <= 15.0},
+      {"ann.cst.cst1_high_level", analog_state_["cst.cst1_level_pct"] >= 90.0},
+      {"ann.cst.cst2_high_level", analog_state_["cst.cst2_level_pct"] >= 90.0},
+      {"ann.aux.high_xe135_concentration", analog_state_["reactor.xe135_pct"] > 200.0},
+      {"ann.aux.high_i135_concentration", analog_state_["reactor.i135_pct"] > 200.0},
+        {"ann.ads.system_armed", analog_state_["ads.armed"] > 0.5},
+        {"ann.ads.system_out_of_service", control_value("ads.system_inhibit")},
+        {"ann.ads.srv1_open", analog_state_["ads.srv1_open"] > 0.5},
+        {"ann.ads.srv2_open", analog_state_["ads.srv2_open"] > 0.5},
+        {"ann.recirc.pump1_cavitation", analog_state_["recirc.pump1_flow_kgs"] > 8000.0},
+        {"ann.recirc.pump2_cavitation", analog_state_["recirc.pump2_flow_kgs"] > 8000.0},
+        {"ann.recirc.no_water_flow", analog_state_["nuc.rtp_pct"] > 5.0 &&
+          analog_state_["recirc.pump1_flow_kgs"] + analog_state_["recirc.pump2_flow_kgs"] <= 0.0},
+        {"ann.recirc.low_water_flow", analog_state_["nuc.rtp_pct"] > 5.0 &&
+          analog_state_["recirc.pump1_flow_kgs"] + analog_state_["recirc.pump2_flow_kgs"] < 3000.0},
       {"ann.rps.reactor_trip_state", malfunction_active("rps.scram_active")},
       {"ann.crd.drive_water_pressure_low", state_.tags["crd.drive_water_pressure_kpa"].value == "0.000"}};
   for (const auto& [id, active] : conditions) {

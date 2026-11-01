@@ -20,12 +20,15 @@ Available GET endpoints:
 - `/api/v1/snapshot`
 - `/api/v1/tags`
 - `/api/v1/controls`
+- `/api/v1/annunciators`
+- `/api/v1/malfunctions`
 - `/api/v1/scenarios`
 - `/api/v1/slots`
 
 Available POST endpoints:
 
 - `/api/v1/command` with body `{"type":"toggle","req_id":"r1","control_id":"elec.startup_tr_breaker","value":"true"}` routes an operator command through normal engine validation.
+- `/api/v1/malfunction` with body `{"id":"mf.cond.loss_vacuum","active":true}` injects or clears a supported instructor fault in the local adapter.
 - `/api/v1/sim/step` with body `{"seconds":0.05}` advances the engine and returns a snapshot.
 - `/api/v1/scenario/{name}/load` loads `cold_shutdown`, `full_power`, or `scram_recovery`.
 - `/api/v1/slots/{1..5}/save` saves the selected game slot.

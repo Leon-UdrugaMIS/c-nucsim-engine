@@ -164,11 +164,75 @@ int main() {
   assert(annunciators.at("ann.turb.generator_reverse_power").state == "NORMAL");
   assert(annunciators.at("ann.cond.offgas_open").state == "NORMAL");
   assert(annunciators.at("ann.dea.low_low_water_level").state == "NORMAL");
+    assert(scenarios.apply_command(
+      {"button", "group-3", "rmcp.group_select_3", "true"}, rbwr::Role::operator_role).ok);
+    assert(scenarios.snapshot().tags.at("rmcp.selected_groups").value == "[3]");
+    assert(scenarios.apply_command(
+      {"button", "group-clear", "rmcp.group_clear", "true"}, rbwr::Role::operator_role).ok);
+    assert(scenarios.snapshot().tags.at("rmcp.selected_groups").value == "[]");
   const std::string pressure_before_fault = scenarios.snapshot().tags.at("reactor.pressure_kpa").value;
   scenarios.inject_malfunction("mf.sensor.reactor.pressure_kpa.dead");
   assert(scenarios.snapshot().tags.at("reactor.pressure_kpa").value == "null");
   assert(scenarios.snapshot().tags.at("reactor.pressure_kpa").quality == "BAD");
   scenarios.inject_malfunction("mf.sensor.reactor.pressure_kpa.dead", false);
   assert(scenarios.snapshot().tags.at("reactor.pressure_kpa").value == pressure_before_fault);
+  scenarios.inject_malfunction("mf.sensor.reactor.pressure_kpa.drift");
+  scenarios.step(1.0);
+  assert(scenarios.snapshot().tags.at("reactor.pressure_kpa").quality == "SUBSTITUTED");
+  scenarios.inject_malfunction("mf.sensor.reactor.pressure_kpa.drift", false);
+  scenarios.inject_malfunction("mf.sensor.reactor.pressure_kpa.noise");
+  scenarios.step(0.1);
+  assert(scenarios.snapshot().tags.at("reactor.pressure_kpa").quality == "SUBSTITUTED");
+  scenarios.inject_malfunction("mf.sensor.reactor.pressure_kpa.noise", false);
+  assert(scenarios.load_scenario("full_power"));
+  assert(scenarios.apply_command(
+      {"set_percent", "trip-power", "rmcp.apr_setpoint", "120"}, rbwr::Role::operator_role).ok);
+  assert(scenarios.apply_command(
+      {"toggle", "trip-apr", "rmcp.apr_control", "true"}, rbwr::Role::operator_role).ok);
+  bool pressure_alarm_seen = false;
+  for (int tick = 0; tick < 100; ++tick) {
+    scenarios.step(1.0);
+    pressure_alarm_seen = pressure_alarm_seen ||
+        scenarios.snapshot().annunciators.at("ann.rmcp.high_rpv_pressure").state == "TRIGGERED";
+  }
+  assert(pressure_alarm_seen);
+  bool pressure_event_seen = false;
+  for (const auto& event : scenarios.events_since(0))
+    pressure_event_seen = pressure_event_seen || event.id == "ann.rmcp.high_rpv_pressure";
+  assert(pressure_event_seen);
+  assert(scenarios.load_scenario("cold_shutdown"));
+  assert(scenarios.snapshot().annunciators.at("ann.rmcp.high_rpv_pressure").state == "NORMAL");
+  rbwr::Engine steam;
+  assert(steam.load_scenario("full_power"));
+  for (const auto& command : {
+           rbwr::Command{"toggle", "ri1", "recirc.inlet1", "true"},
+           rbwr::Command{"toggle", "ro1", "recirc.outlet1", "true"},
+           rbwr::Command{"toggle", "rp1", "recirc.pump1", "true"}})
+    assert(steam.apply_command(command, rbwr::Role::operator_role).ok);
+  steam.step(1.0);
+  assert(steam.snapshot().tags.at("recirc.pump1_flow_kgs").value == "4500.000");
+  assert(steam.apply_command(
+      {"set_percent", "steam-power", "rmcp.apr_setpoint", "120"}, rbwr::Role::operator_role).ok);
+  assert(steam.apply_command(
+      {"toggle", "steam-apr", "rmcp.apr_control", "true"}, rbwr::Role::operator_role).ok);
+  bool msrv_seen = false;
+  for (int tick = 0; tick < 100; ++tick) {
+    steam.step(1.0);
+    msrv_seen = msrv_seen || steam.snapshot().tags.at("srv.msrv1_open").value == "true";
+  }
+  assert(msrv_seen);
+  assert(!steam.malfunction_ids().empty());
+  steam.inject_malfunction("mf.cond.loss_vacuum");
+  steam.step(1.0);
+  assert(std::stod(steam.snapshot().tags.at("cond.pressure_mbar").value) > 60.0);
+  steam.inject_malfunction("mf.turb.overspeed");
+  steam.step(0.1);
+  assert(steam.snapshot().tags.at("turb.rpm").value == "4000.000");
+  steam.inject_malfunction("mf.turb.high_vibration");
+  steam.step(0.1);
+  assert(steam.snapshot().tags.at("turb.vibration_um").value == "150.000");
+  steam.inject_malfunction("mf.steam.srv_stuck_open");
+  steam.step(0.1);
+  assert(steam.snapshot().tags.at("srv.msrv1_open").value == "true");
   return 0;
 }

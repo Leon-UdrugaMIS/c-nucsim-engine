@@ -19,4 +19,4 @@ This file is the honest boundary of the current repository implementation.
 
 ## Not yet high-fidelity
 
-The full master prompt still calls for detailed IAPWS properties, six-group kinetics, fuel assembly thermal hydraulics, EDG sequencing, RHR/RCIC/ADS, turbine component state machines, complete sensor fault injection, WebSocket/REST networking, all registry-generated documentation, and the complete malfunction/scenario catalog. Those are not silently represented as complete here; unsupported behavior must be implemented in later subsystem work before claiming acceptance against the full specification.
+The full master pr detailed IAPWS pompt still calls forroperties, six-group kinetics, fuel assembly thermal hydraulics, EDG sequencing, RHR/RCIC/ADS, turbine component state machines, complete sensor fault injection, WebSocket/REST networking, all registry-generated documentation, and the complete malfunction/scenario catalog. Those are not silently represented as complete here; unsupported behavior must be implemented in later subsystem work before claiming acceptance against the full specification.

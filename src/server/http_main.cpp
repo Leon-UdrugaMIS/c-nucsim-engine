@@ -12,6 +12,15 @@
 
 namespace {
 
+bool has_prefix(const std::string& value, const std::string& prefix) {
+  return value.size() >= prefix.size() && value.compare(0, prefix.size(), prefix) == 0;
+}
+
+bool has_suffix(const std::string& value, const std::string& suffix) {
+  return value.size() >= suffix.size() &&
+      value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
 std::string json_escape(const std::string& value) {
   std::string result;
   for (const char character : value) {
@@ -79,6 +88,28 @@ std::string response_for(const std::string& target, const rbwr::Engine& engine) 
     output << "]}";
     return output.str();
   }
+  if (target == "/api/v1/annunciators") {
+    std::ostringstream output;
+    output << "{\"annunciators\":[";
+    const auto ids = engine.annunciator_ids();
+    for (std::size_t index = 0; index < ids.size(); ++index) {
+      if (index != 0) output << ',';
+      output << "\"" << json_escape(ids[index]) << "\"";
+    }
+    output << "]}";
+    return output.str();
+  }
+  if (target == "/api/v1/malfunctions") {
+    std::ostringstream output;
+    output << "{\"malfunctions\":[";
+    const auto ids = engine.malfunction_ids();
+    for (std::size_t index = 0; index < ids.size(); ++index) {
+      if (index != 0) output << ',';
+      output << "\"" << json_escape(ids[index]) << "\"";
+    }
+    output << "]}";
+    return output.str();
+  }
   if (target == "/api/v1/scenarios")
     return "{\"scenarios\":[\"cold_shutdown\",\"full_power\",\"scram_recovery\"]}";
   if (target == "/api/v1/slots") {
@@ -115,6 +146,15 @@ std::string post_response(const std::string& target, const std::string& body,
           "\",\"hint\":\"" + json_escape(result.hint) + "\",\"new_value\":\"" +
           json_escape(result.new_value) + "\"}";
     }
+            if (target == "/api/v1/malfunction") {
+          const std::string id = json_string_field(body, "id");
+          const std::string active = json_string_field(body, "active");
+          if (id.empty()) throw std::invalid_argument("malfunction requires id");
+          const bool enabled = active != "false";
+          engine.inject_malfunction(id, enabled);
+          return "{\"ok\":true,\"id\":\"" + json_escape(id) +
+              "\",\"active\":" + (enabled ? "true" : "false") + "}";
+            }
     if (target == "/api/v1/sim/step") {
       const std::size_t colon = body.find(':');
       const double seconds = std::stod(body.substr(colon == std::string::npos ? 0 : colon + 1));
@@ -123,7 +163,7 @@ std::string post_response(const std::string& target, const std::string& body,
       return snapshot_json(engine);
     }
     const std::string scenario_prefix = "/api/v1/scenario/";
-    if (target.starts_with(scenario_prefix) && target.ends_with("/load")) {
+    if (has_prefix(target, scenario_prefix) && has_suffix(target, "/load")) {
       const std::string name = target.substr(scenario_prefix.size(), target.size() - scenario_prefix.size() - 5);
       const bool ok = engine.load_scenario(name);
       status = ok ? 200 : 400;
@@ -131,7 +171,7 @@ std::string post_response(const std::string& target, const std::string& body,
           ",\"scenario\":\"" + json_escape(engine.scenario_name()) + "\"}";
     }
     const std::string slot_prefix = "/api/v1/slots/";
-    if (target.starts_with(slot_prefix)) {
+    if (has_prefix(target, slot_prefix)) {
       const std::string suffix = target.substr(slot_prefix.size());
       const std::size_t slash = suffix.find('/');
       if (slash == std::string::npos) throw std::invalid_argument("slot operation missing");
