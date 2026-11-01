@@ -234,5 +234,11 @@ int main() {
   steam.inject_malfunction("mf.steam.srv_stuck_open");
   steam.step(0.1);
   assert(steam.snapshot().tags.at("srv.msrv1_open").value == "true");
+  rbwr::Engine fuel;
+  assert(fuel.load_scenario("full_power"));
+  for (int tick = 0; tick < 10; ++tick) fuel.step(1.0);
+  assert(fuel.snapshot().tags.count("fa.01.l1.temp_c") == 1);
+  assert(std::stod(fuel.snapshot().tags.at("fa.01.l1.temp_c").value) > 300.0);
+  assert(fuel.snapshot().tags.count("reactor.decay_heat_mw") == 1);
   return 0;
 }

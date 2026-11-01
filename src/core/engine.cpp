@@ -42,8 +42,16 @@ Engine::Engine(std::string version)
   analog_state_["cond.hotwell_level_pct"] = 55.0;
   analog_state_["dea.level_pct"] = 60.0;
   analog_state_["fw.flow_kgs"] = 0.0;
+  analog_state_["reactor.xe135_pct"] = 100.0;
+  analog_state_["reactor.i135_pct"] = 100.0;
+  analog_state_["fuel.remaining_pct"] = 100.0;
+  analog_state_["reactor.decay_heat_mw"] = 0.0;
   for (int rod = 1; rod <= 24; ++rod) {
     analog_state_[std::string("rod.") + (rod < 10 ? "0" : "") + std::to_string(rod) + ".pos_pct"] = 0.0;
+    for (int level = 1; level <= 10; ++level) {
+      analog_state_[std::string("fa.") + (rod < 10 ? "0" : "") + std::to_string(rod) +
+                    ".l" + std::to_string(level) + ".temp_c"] = 300.0;
+    }
   }
   const std::vector<std::pair<std::string, double>> nominal_telemetry = {
       {"turb.oil_temp_c", 48.0}, {"turb.oil_pressure_kpa", 250.0},
@@ -622,6 +630,26 @@ void Engine::update_process(double dt) {
   const double target_power = scrammed ? 0.0 : std::clamp(analog_state_["nuc.rtp_pct"] +
       (control_value("rmcp.apr_control") ? (std::stod(controls_["rmcp.apr_setpoint"]) - reactor_power) * 0.2 : 0.0), 0.0, 120.0);
   analog_state_["nuc.rtp_pct"] += (target_power - reactor_power) * std::clamp(dt * 0.5, 0.0, 1.0);
+    const double power_fraction = analog_state_["nuc.rtp_pct"] / 100.0;
+    analog_state_["reactor.i135_pct"] +=
+      (100.0 * power_fraction - analog_state_["reactor.i135_pct"]) * dt / 300.0;
+    analog_state_["reactor.xe135_pct"] +=
+      (100.0 * power_fraction + 0.35 * analog_state_["reactor.i135_pct"] -
+       analog_state_["reactor.xe135_pct"]) * dt / 600.0;
+    analog_state_["reactor.xe135_pct"] = std::clamp(analog_state_["reactor.xe135_pct"], 0.0, 400.0);
+    analog_state_["reactor.i135_pct"] = std::clamp(analog_state_["reactor.i135_pct"], 0.0, 400.0);
+    analog_state_["fuel.remaining_pct"] = std::max(
+      0.0, analog_state_["fuel.remaining_pct"] - power_fraction * 0.000001 * dt);
+    analog_state_["reactor.decay_heat_mw"] = scrammed
+      ? std::max(0.0, reactor_power * 0.07) : analog_state_["nuc.rtp_pct"] * 0.02;
+    for (int assembly = 1; assembly <= 24; ++assembly) {
+    for (int level = 1; level <= 10; ++level) {
+      const std::string id = std::string("fa.") + (assembly < 10 ? "0" : "") + std::to_string(assembly) +
+        ".l" + std::to_string(level) + ".temp_c";
+      analog_state_[id] += (300.0 + 300.0 * power_fraction - analog_state_[id]) *
+        std::clamp(dt / 5.0, 0.0, 1.0);
+    }
+    }
   analog_state_["reactor.pressure_kpa"] = 101.3 + analog_state_["nuc.rtp_pct"] * 69.987;
   for (int valve = 1; valve <= 6; ++valve) {
     const double lift_pressure = 7650.0 + static_cast<double>(valve - 1) * 50.0;
@@ -881,7 +909,13 @@ void Engine::publish_state() {
   for (int rod = 1; rod <= 24; ++rod) {
     const std::string id = std::string("rod.") + (rod < 10 ? "0" : "") + std::to_string(rod) + ".pos_pct";
     state_.tags[id] = {number(analog_state_[id]), "%", "GOOD"};
+    for (int level = 1; level <= 10; ++level) {
+      const std::string fuel_id = std::string("fa.") + (rod < 10 ? "0" : "") + std::to_string(rod) +
+          ".l" + std::to_string(level) + ".temp_c";
+      state_.tags[fuel_id] = {number(analog_state_[fuel_id]), "C", "GOOD"};
+    }
   }
+  state_.tags["reactor.decay_heat_mw"] = {number(analog_state_["reactor.decay_heat_mw"]), "MW", "GOOD"};
   const std::vector<std::pair<std::string, std::string>> telemetry = {
       {"turb.oil_temp_c", "C"}, {"turb.oil_pressure_kpa", "kPa"},
       {"turb.hydraulic_pressure_kpa", "kPa"}, {"env.outside_temp_c", "C"},
