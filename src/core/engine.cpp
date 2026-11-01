@@ -46,6 +46,8 @@ Engine::Engine(std::string version)
   analog_state_["reactor.i135_pct"] = 100.0;
   analog_state_["fuel.remaining_pct"] = 100.0;
   analog_state_["reactor.decay_heat_mw"] = 0.0;
+  neutron_population_ = 0.0;
+  previous_neutron_population_ = 0.0;
   for (int rod = 1; rod <= 24; ++rod) {
     analog_state_[std::string("rod.") + (rod < 10 ? "0" : "") + std::to_string(rod) + ".pos_pct"] = 0.0;
     for (int level = 1; level <= 10; ++level) {
@@ -307,6 +309,41 @@ CommandResult Engine::apply_command(const Command& command, Role role) {
     result.new_value = "accepted";
     return result;
   }
+  if (command.type == "rps_override") {
+    if (role != Role::instructor) {
+      result.code = "ERR_ROLE";
+      result.detail = "RPS overrides require the instructor role";
+      result.hint = "Authenticate as instructor to alter protection logic";
+      return result;
+    }
+    if (command.value != "true" && command.value != "false") {
+      result.code = "ERR_INVALID_VALUE";
+      result.detail = "RPS override value must be true or false";
+      result.hint = "Use true to enable or false to disable the trigger";
+      return result;
+    }
+    const std::vector<std::string> valid_triggers = {
+        "all", "manual_scram", "high_pressure", "low_level", "offsite_power_loss",
+        "aprm_upscale", "aprm_downscale", "low_period"};
+    if (std::find(valid_triggers.begin(), valid_triggers.end(), command.control_id) ==
+        valid_triggers.end()) {
+      result.code = "ERR_UNKNOWN_CONTROL";
+      result.detail = "RPS trigger is not in the override registry";
+      result.hint = "Use all or a documented RPS trigger name";
+      return result;
+    }
+    const bool enabled = command.value == "true";
+    set_rps_override(command.control_id, enabled);
+    result.ok = true;
+    result.code.clear();
+    result.new_value = command.value;
+    result.settling_estimate_s = 0.0;
+    events_.push_back({info_.tick, "event_log", "rps." + command.control_id,
+                       enabled ? "EVT_RPS_OVERRIDE_ENABLED" : "EVT_RPS_OVERRIDE_DISABLED"});
+    publish_state();
+    evaluate_annunciators();
+    return result;
+  }
   const auto spec = registry_.find(command.control_id);
   if (spec == registry_.end()) {
     result.detail = "Control does not exist in the live registry";
@@ -421,9 +458,14 @@ CommandResult Engine::apply_command(const Command& command, Role role) {
     if (command.control_id == "rmcp.scram_button_b") scram_button_b_time_ = pressed_at;
     if (scram_button_a_time_ >= 0.0 && scram_button_b_time_ >= 0.0 &&
         std::abs(scram_button_a_time_ - scram_button_b_time_) <= 2.0) {
-      controls_["rmcp.reactor_mode"] = "SD";
-      malfunctions_["rps.scram_active"] = true;
-      events_.push_back({info_.tick, "scram", "rps.scram_active", "manual scram"});
+      if (rps_trigger_enabled("manual_scram")) {
+        controls_["rmcp.reactor_mode"] = "SD";
+        malfunctions_["rps.scram_active"] = true;
+        events_.push_back({info_.tick, "scram", "rps.scram_active", "manual scram"});
+      } else {
+        events_.push_back({info_.tick, "event_log", "rps.manual_scram",
+                           "EVT_RPS_OVERRIDE_BLOCKED"});
+      }
     }
   } else if (command.type == "rate_switch") {
     held_rate_switches_[command.control_id] = command.value;
@@ -496,6 +538,22 @@ void Engine::inject_malfunction(const std::string& id, bool active) {
   publish_state();
   evaluate_annunciators();
 }
+
+void Engine::set_rps_override(const std::string& trigger, bool enabled) {
+  if (trigger == "all") {
+    rps_enabled_ = enabled;
+    return;
+  }
+  rps_trigger_overrides_[trigger] = enabled;
+}
+
+bool Engine::rps_trigger_enabled(const std::string& trigger) const {
+  if (!rps_enabled_) return false;
+  const auto found = rps_trigger_overrides_.find(trigger);
+  return found == rps_trigger_overrides_.end() || found->second;
+}
+
+bool Engine::rps_enabled() const { return rps_enabled_; }
 
 bool Engine::malfunction_active(const std::string& id) const {
   const auto found = malfunctions_.find(id);
@@ -627,9 +685,70 @@ void Engine::update_process(double dt) {
   const double drive_pressure = crd_running ? 8500.0 : 0.0;
   const double reactor_power = analog_state_["nuc.rtp_pct"];
   const bool scrammed = malfunction_active("rps.scram_active");
-  const double target_power = scrammed ? 0.0 : std::clamp(analog_state_["nuc.rtp_pct"] +
-      (control_value("rmcp.apr_control") ? (std::stod(controls_["rmcp.apr_setpoint"]) - reactor_power) * 0.2 : 0.0), 0.0, 120.0);
-  analog_state_["nuc.rtp_pct"] += (target_power - reactor_power) * std::clamp(dt * 0.5, 0.0, 1.0);
+    const bool offsite_power_lost = malfunction_active("mf.elec.loop");
+    const bool run_mode = controls_["rmcp.reactor_mode"] == "RUN";
+    const bool high_pressure_trip = analog_state_["reactor.pressure_kpa"] >= 7900.0;
+    const bool low_level_trip = analog_state_["reactor.level_nr_m"] <= -0.9;
+    const bool aprm_upscale_trip = reactor_power >= 118.0;
+    const bool aprm_downscale_trip = run_mode && reactor_power <= 3.0;
+    const bool low_period_trip = reactor_period_s_ < 10.0;
+    const bool channel_a_trip = (rps_trigger_enabled("high_pressure") && high_pressure_trip) ||
+      (rps_trigger_enabled("low_level") && low_level_trip) ||
+      (rps_trigger_enabled("offsite_power_loss") && offsite_power_lost) ||
+      (rps_trigger_enabled("aprm_upscale") && aprm_upscale_trip) ||
+      (rps_trigger_enabled("aprm_downscale") && aprm_downscale_trip) ||
+      (rps_trigger_enabled("low_period") && low_period_trip);
+    const bool channel_b_trip = channel_a_trip;
+    rps_channel_a_tripped_ = rps_channel_a_tripped_ || channel_a_trip;
+    rps_channel_b_tripped_ = rps_channel_b_tripped_ || channel_b_trip;
+    if (rps_channel_a_tripped_ || rps_channel_b_tripped_) malfunctions_["rps.scram_active"] = true;
+  const double apr_target = control_value("rmcp.apr_control")
+      ? std::clamp(std::stod(controls_["rmcp.apr_setpoint"]), 0.0, 120.0)
+      : reactor_power;
+  double average_rod_position = 0.0;
+  for (int rod = 1; rod <= 24; ++rod) {
+    const std::string id = std::string("rod.") + (rod < 10 ? "0" : "") + std::to_string(rod) + ".pos_pct";
+    average_rod_position += analog_state_[id];
+  }
+  average_rod_position /= 24.0;
+  const double beta_total = 0.0065;
+  const std::array<double, 6> beta_fractions = {0.00025, 0.00125, 0.00120,
+                                                  0.00250, 0.00150, 0.00030};
+  const std::array<double, 6> decay_constants = {0.0124, 0.0305, 0.1110,
+                                                  0.3010, 1.1400, 3.0100};
+  const double demand_error = (apr_target - reactor_power) / std::max(100.0, apr_target);
+  const double rod_reactivity = (average_rod_position - 50.0) * 0.00002;
+  const double scram_reactivity = scrammed ? -0.02 : 0.0;
+  const double reactivity = std::clamp(0.02 * demand_error + rod_reactivity + scram_reactivity,
+                                       -0.02, 0.01);
+  const double kinetics_step = std::min(dt, 0.01);
+  const int kinetics_substeps = std::max(1, static_cast<int>(std::ceil(dt / kinetics_step)));
+  const double substep = dt / static_cast<double>(kinetics_substeps);
+  if (apr_target > 0.0 && neutron_population_ <= 0.0) neutron_population_ = 1.0e-6;
+  for (int substep_index = 0; substep_index < kinetics_substeps; ++substep_index) {
+    double precursor_source = 0.0;
+    for (std::size_t group = 0; group < delayed_precursors_.size(); ++group)
+      precursor_source += decay_constants[group] * delayed_precursors_[group];
+    const double apr_source = scrammed ? 0.0 : 0.8 * (apr_target - neutron_population_);
+    const double population_derivative = ((reactivity - beta_total) / 0.05) * neutron_population_ +
+        precursor_source + apr_source;
+    const double population = std::max(0.0, neutron_population_ + population_derivative * substep);
+    for (std::size_t group = 0; group < delayed_precursors_.size(); ++group) {
+      const double derivative = beta_fractions[group] / 0.05 * neutron_population_ -
+          decay_constants[group] * delayed_precursors_[group];
+      delayed_precursors_[group] = std::max(0.0, delayed_precursors_[group] + derivative * substep);
+    }
+    neutron_population_ = population;
+  }
+  analog_state_["nuc.rtp_pct"] = std::clamp(neutron_population_, 0.0, 120.0);
+  if (dt > 0.0 && neutron_population_ > 1.0e-12 && previous_neutron_population_ > 1.0e-12) {
+    const double logarithmic_rate = std::log(neutron_population_ / previous_neutron_population_) / dt;
+    reactor_period_s_ = std::clamp(std::abs(logarithmic_rate) > 1.0e-9
+        ? 1.0 / logarithmic_rate : 1000.0, -1000.0, 1000.0);
+  } else {
+    reactor_period_s_ = 1000.0;
+  }
+  previous_neutron_population_ = std::max(neutron_population_, 1.0e-12);
     const double power_fraction = analog_state_["nuc.rtp_pct"] / 100.0;
     analog_state_["reactor.i135_pct"] +=
       (100.0 * power_fraction - analog_state_["reactor.i135_pct"]) * dt / 300.0;
@@ -678,7 +797,7 @@ void Engine::update_process(double dt) {
     const bool rcic_failed = malfunction_active("mf.eccs.rcic_fail_start");
     const bool rcic_enabled = !rcic_failed &&
       (control_value("eccs.rcic_turbopump") || low_low_level) &&
-      analog_state_["reactor.pressure_kpa"] > 1000.0 && emergency_bus;
+      (analog_state_["reactor.pressure_kpa"] > 1000.0 || (low_low_level && scrammed)) && emergency_bus;
     analog_state_["eccs.rcic_rpm"] = rcic_enabled ? 1800.0 : 0.0;
     analog_state_["eccs.rcic_flow_kgs"] = rcic_enabled ? 80.0 : 0.0;
     if (rcic_enabled) analog_state_["reactor.level_nr_m"] = std::min(
@@ -712,7 +831,8 @@ void Engine::update_process(double dt) {
         analog_state_[id] = std::max(0.0, analog_state_[id] - 25.0 * dt);
       }
     }
-    if (analog_state_["reactor.pressure_kpa"] >= 7900.0 && !scrammed) {
+    if (rps_trigger_enabled("high_pressure") &&
+      analog_state_["reactor.pressure_kpa"] >= 7900.0 && !scrammed) {
       malfunctions_["rps.scram_active"] = true;
       events_.push_back({info_.tick, "scram", "rps.scram_active", "high pressure trip"});
     }
@@ -743,7 +863,12 @@ bool Engine::save(const std::string& path) const {
          << state_.paused << '\n';
   for (const auto& [id, value] : controls_) output << "C " << id << ' ' << value << '\n';
   for (const auto& [id, active] : malfunctions_) output << "M " << id << ' ' << active << '\n';
-    for (const auto& [id, value] : analog_state_) output << "A " << id << ' ' << value << '\n';
+  output << "R all " << rps_enabled_ << '\n';
+  for (const auto& [trigger, enabled] : rps_trigger_overrides_) {
+    output << "R " << trigger << ' ' << enabled << '\n';
+  }
+  for (const auto& [id, value] : analog_state_)
+    output << "A " << id << ' ' << value << '\n';
   return static_cast<bool>(output);
 }
 
@@ -766,6 +891,10 @@ bool Engine::load(const std::string& path) {
   while (input >> kind >> id >> value) {
     if (kind == 'C') controls_[id] = value;
     if (kind == 'M') malfunctions_[id] = value == "1";
+    if (kind == 'R') {
+      if (id == "all") rps_enabled_ = value == "1";
+      else rps_trigger_overrides_[id] = value == "1";
+    }
     if (kind == 'A') {
       try {
         std::size_t consumed = 0;
@@ -836,12 +965,28 @@ bool Engine::load_scenario(const std::string& name) {
     analog_state_["turb.generator_synced"] = 1.0;
     controls_["turb.exciter_avr_breaker"] = "true";
     controls_["turb.gen_breaker_sync"] = "true";
+    neutron_population_ = 100.0;
+    previous_neutron_population_ = 100.0;
+    delayed_precursors_ = {0.4032, 0.8197, 0.2162, 1.6611, 0.2632, 0.1993};
+    for (int rod = 1; rod <= 24; ++rod) {
+      const std::string id = std::string("rod.") + (rod < 10 ? "0" : "") +
+          std::to_string(rod) + ".pos_pct";
+      analog_state_[id] = 50.0;
+    }
   } else {
     analog_state_["nuc.rtp_pct"] = 0.0;
     analog_state_["reactor.pressure_kpa"] = 101.3;
     analog_state_["turb.rpm"] = 3.0;
     analog_state_["turb.generator_synced"] = 0.0;
+    neutron_population_ = 0.0;
+    previous_neutron_population_ = 0.0;
+    delayed_precursors_.fill(0.0);
   }
+  rps_channel_a_tripped_ = name == "scram_recovery";
+  rps_channel_b_tripped_ = name == "scram_recovery";
+  rps_enabled_ = true;
+  rps_trigger_overrides_.clear();
+  reactor_period_s_ = 1000.0;
   info_.tick = 0;
   state_.tick = 0;
   state_.sim_time = 0.0;
@@ -957,6 +1102,7 @@ void Engine::publish_state() {
       {"pool.supp_temp_c", "C"}, {"pool.supp_level_pct", "%"}};
   for (const auto& [id, unit] : telemetry)
     state_.tags[id] = {number(analog_state_[id]), unit, "GOOD"};
+  state_.tags["nuc.period_avg_s"] = {number(reactor_period_s_), "s", "GOOD"};
   for (auto& [id, tag] : state_.tags) {
     const std::string prefix = "mf.sensor." + id + ".";
     if (malfunction_active(prefix + "dead")) {
@@ -981,16 +1127,34 @@ void Engine::publish_state() {
       tag.quality = "SUBSTITUTED";
     }
   }
+  const auto energized_load = [](bool energized, const std::string& control,
+                                 const std::map<std::string, std::string>& controls,
+                                 double megawatts) {
+    const auto found = controls.find(control);
+    return energized && found != controls.end() && found->second == "true" ? megawatts : 0.0;
+  };
   double site_usage = safety ? 1.0 : 0.0;
-  site_usage += bus_a && control_value("crd.pump1") ? 0.8 : 0.0;
-  site_usage += bus_a && control_value("crd.pump2") ? 0.8 : 0.0;
-  site_usage += bus_a && control_value("cst.cst1_makeup") ? 5.0 : 0.0;
-  site_usage += bus_a && control_value("cst.cst2_makeup") ? 5.0 : 0.0;
-  site_usage += bus_a && control_value("mcc.hotwell_pump") ? 0.8 : 0.0;
-  site_usage += bus_b && control_value("mcc.fw_pump2") ? 7.0 : 0.0;
-  state_.tags["elec.site_usage_mw"] = {number(site_usage), "MW", "GOOD"};
+  site_usage += energized_load(bus_a, "crd.pump1", controls_, 0.8);
+  site_usage += energized_load(bus_a, "crd.pump2", controls_, 0.8);
+  site_usage += energized_load(bus_a, "cst.cst1_makeup", controls_, 5.0);
+  site_usage += energized_load(bus_a, "cst.cst2_makeup", controls_, 5.0);
+  site_usage += energized_load(bus_a, "cst.cst1_drain", controls_, 5.0);
+  site_usage += energized_load(bus_a, "cst.cst2_drain", controls_, 5.0);
+  site_usage += energized_load(bus_a, "recirc.pump1", controls_, 4.5);
+  site_usage += energized_load(bus_a, "recirc.pump2", controls_, 4.5);
+  site_usage += energized_load(bus_a, "mcc.cond_pump1", controls_, 2.5);
+  site_usage += energized_load(bus_b, "mcc.cond_pump2", controls_, 2.5);
+  site_usage += energized_load(bus_a, "mcc.fw_pump1", controls_, 7.0);
+  site_usage += energized_load(bus_b, "mcc.fw_pump2", controls_, 7.0);
+  site_usage += energized_load(bus_a, "mcc.hotwell_pump", controls_, 0.8);
   const double generator_load = analog_state_["turb.generator_synced"] > 0.5
       ? std::clamp(analog_state_["nuc.rtp_pct"] * 9.11, 0.0, 1500.0) : 0.0;
+  if (generator_load > 0.0) site_usage += 40.3;
+  const double startup_transformer_load = bus_a && generator_load == 0.0 ? site_usage : 0.0;
+  const double main_transformer_load = generator_load;
+  state_.tags["elec.site_usage_mw"] = {number(site_usage), "MW", "GOOD"};
+  state_.tags["elec.startup_tr_load_mw"] = {number(startup_transformer_load), "MW", "GOOD"};
+  state_.tags["elec.main_tr_load_mw"] = {number(main_transformer_load), "MW", "GOOD"};
   state_.tags["elec.generator_load_mw"] = {number(generator_load), "MW", "GOOD"};
   state_.tags["elec.sent_to_grid_mw"] = {number(grid ? generator_load - site_usage : 0.0), "MW", "GOOD"};
   const double pressure = analog_state_["reactor.pressure_kpa"];
@@ -1008,6 +1172,13 @@ void Engine::publish_state() {
       "object", "GOOD"};
   state_.tags["cond.pressure_mbar"] = {number(analog_state_["cond.pressure_mbar"]), "mbar", "GOOD"};
   state_.tags["rps.scram_active"] = {scram ? "true" : "false", "", "GOOD"};
+  state_.tags["rps.channel_a_tripped"] = {rps_channel_a_tripped_ ? "true" : "false", "", "GOOD"};
+  state_.tags["rps.channel_b_tripped"] = {rps_channel_b_tripped_ ? "true" : "false", "", "GOOD"};
+  state_.tags["rps.protection_enabled"] = {rps_enabled_ ? "true" : "false", "", "GOOD"};
+  for (const auto& trigger : {"manual_scram", "high_pressure", "low_level", "offsite_power_loss",
+                              "aprm_upscale", "aprm_downscale", "low_period"})
+    state_.tags["rps.trigger." + std::string(trigger) + ".enabled"] =
+        {rps_trigger_enabled(trigger) ? "true" : "false", "", "GOOD"};
   state_.tags["crd.drive_water_pressure_kpa"] =
       {number(analog_state_["crd.drive_water_pressure_kpa"]), "kPa", "GOOD"};
   state_.tags["alarm.audible_active"] = {"false", "", "GOOD"};
@@ -1056,6 +1227,9 @@ void Engine::evaluate_annunciators() {
       {"ann.rmcp.high_rpv_pressure", sensed("reactor.pressure_kpa") > 7600.0},
       {"ann.rps.reactor_pressure_high_trip", sensed("reactor.pressure_kpa") >= 7900.0},
       {"ann.rps.reactor_level_low_trip", sensed("reactor.level_nr_m") <= -0.9},
+      {"ann.rps.auto_trip", rps_channel_a_tripped_ || rps_channel_b_tripped_},
+      {"ann.rmcp.rps_channel_a_trip", rps_channel_a_tripped_},
+      {"ann.rmcp.rps_channel_b_trip", rps_channel_b_tripped_},
       {"ann.cond.no_condenser_vacuum", sensed("cond.pressure_mbar") > 150.0},
       {"ann.cond.low_condenser_vacuum", sensed("cond.pressure_mbar") > 80.0},
       {"ann.turb.high_turbine_rpm", sensed("turb.rpm") >= 3960.0},

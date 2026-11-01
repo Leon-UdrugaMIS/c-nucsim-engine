@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -81,6 +82,9 @@ class Engine {
   [[nodiscard]] std::vector<std::string> annunciator_ids() const;
   [[nodiscard]] std::vector<Event> events_since(std::uint64_t tick) const;
   void inject_malfunction(const std::string& id, bool active = true);
+  void set_rps_override(const std::string& trigger, bool enabled);
+  [[nodiscard]] bool rps_trigger_enabled(const std::string& trigger) const;
+  [[nodiscard]] bool rps_enabled() const;
   [[nodiscard]] bool malfunction_active(const std::string& id) const;
   [[nodiscard]] std::vector<std::string> malfunction_ids() const;
   void pause(bool value);
@@ -128,6 +132,14 @@ class Engine {
   std::string scenario_ = "cold_shutdown";
   std::vector<int> selected_groups_;
   std::vector<Event> events_;
+  double neutron_population_ = 0.0;
+  std::array<double, 6> delayed_precursors_{};
+  double previous_neutron_population_ = 0.0;
+  double reactor_period_s_ = 1000.0;
+  bool rps_channel_a_tripped_ = false;
+  bool rps_channel_b_tripped_ = false;
+  bool rps_enabled_ = true;
+  std::map<std::string, bool> rps_trigger_overrides_;
 };
 
 }  // namespace rbwr

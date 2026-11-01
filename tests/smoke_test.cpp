@@ -152,6 +152,24 @@ int main() {
   assert(scenarios.scenario_name() == "full_power");
   assert(scenarios.snapshot().tags.at("reactor.pressure_kpa").value == "7100.000");
   assert(scenarios.snapshot().tags.at("elec.bus.a.energized").value == "true");
+  assert(scenarios.snapshot().tags.at("elec.main_tr_load_mw").value == "911.000");
+  assert(scenarios.snapshot().tags.at("elec.sent_to_grid_mw").value == "869.700");
+    assert(!scenarios.apply_command(
+      {"rps_override", "override-observer", "all", "false"}, rbwr::Role::observer).ok);
+    assert(scenarios.apply_command(
+      {"rps_override", "override-pressure", "high_pressure", "false"},
+      rbwr::Role::instructor).ok);
+    assert(!scenarios.rps_trigger_enabled("high_pressure"));
+    assert(scenarios.rps_trigger_enabled("low_level"));
+    assert(scenarios.snapshot().tags.at("rps.trigger.high_pressure.enabled").value == "false");
+    assert(scenarios.apply_command(
+      {"rps_override", "override-all", "all", "false"}, rbwr::Role::instructor).ok);
+    assert(!scenarios.rps_enabled());
+    assert(!scenarios.rps_trigger_enabled("low_level"));
+    assert(!scenarios.rps_trigger_enabled("manual_scram"));
+    assert(scenarios.load_scenario("cold_shutdown"));
+    assert(scenarios.rps_enabled());
+    assert(scenarios.rps_trigger_enabled("high_pressure"));
   assert(!scenarios.load_scenario("unknown"));
   assert(scenarios.load_scenario("scram_recovery"));
   assert(scenarios.malfunction_active("rps.scram_active"));
@@ -196,6 +214,9 @@ int main() {
         scenarios.snapshot().annunciators.at("ann.rmcp.high_rpv_pressure").state == "TRIGGERED";
   }
   assert(pressure_alarm_seen);
+  assert(scenarios.snapshot().tags.at("rps.channel_a_tripped").value == "true");
+  assert(scenarios.snapshot().tags.at("rps.channel_b_tripped").value == "true");
+  assert(scenarios.snapshot().annunciators.at("ann.rps.auto_trip").state == "TRIGGERED");
   bool pressure_event_seen = false;
   for (const auto& event : scenarios.events_since(0))
     pressure_event_seen = pressure_event_seen || event.id == "ann.rmcp.high_rpv_pressure";
