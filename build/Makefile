@@ -153,6 +153,19 @@ rbwr_server/fast:
 .PHONY : rbwr_server/fast
 
 #=============================================================================
+# Target rules for targets named rbwr_http
+
+# Build rule for target.
+rbwr_http: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 rbwr_http
+.PHONY : rbwr_http
+
+# fast build rule for target.
+rbwr_http/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_http.dir/build.make CMakeFiles/rbwr_http.dir/build
+.PHONY : rbwr_http/fast
+
+#=============================================================================
 # Target rules for targets named rbwr_cli
 
 # Build rule for target.
@@ -590,6 +603,30 @@ src/core/engine.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_core.dir/build.make CMakeFiles/rbwr_core.dir/src/core/engine.cpp.s
 .PHONY : src/core/engine.cpp.s
 
+src/server/http_main.o: src/server/http_main.cpp.o
+.PHONY : src/server/http_main.o
+
+# target to build an object file
+src/server/http_main.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_http.dir/build.make CMakeFiles/rbwr_http.dir/src/server/http_main.cpp.o
+.PHONY : src/server/http_main.cpp.o
+
+src/server/http_main.i: src/server/http_main.cpp.i
+.PHONY : src/server/http_main.i
+
+# target to preprocess a source file
+src/server/http_main.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_http.dir/build.make CMakeFiles/rbwr_http.dir/src/server/http_main.cpp.i
+.PHONY : src/server/http_main.cpp.i
+
+src/server/http_main.s: src/server/http_main.cpp.s
+.PHONY : src/server/http_main.s
+
+# target to generate assembly for a file
+src/server/http_main.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_http.dir/build.make CMakeFiles/rbwr_http.dir/src/server/http_main.cpp.s
+.PHONY : src/server/http_main.cpp.s
+
 src/server/main.o: src/server/main.cpp.o
 .PHONY : src/server/main.o
 
@@ -677,6 +714,7 @@ help:
 	@echo "... NightlyUpdate"
 	@echo "... rbwr_cli"
 	@echo "... rbwr_core"
+	@echo "... rbwr_http"
 	@echo "... rbwr_server"
 	@echo "... rbwr_tests"
 	@echo "... src/cli/main.o"
@@ -685,6 +723,9 @@ help:
 	@echo "... src/core/engine.o"
 	@echo "... src/core/engine.i"
 	@echo "... src/core/engine.s"
+	@echo "... src/server/http_main.o"
+	@echo "... src/server/http_main.i"
+	@echo "... src/server/http_main.s"
 	@echo "... src/server/main.o"
 	@echo "... src/server/main.i"
 	@echo "... src/server/main.s"

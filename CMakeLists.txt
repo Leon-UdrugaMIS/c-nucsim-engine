@@ -13,6 +13,10 @@ add_executable(rbwr_server src/server/main.cpp)
 target_link_libraries(rbwr_server PRIVATE rbwr_core)
 target_compile_options(rbwr_server PRIVATE -Wall -Wextra -Wpedantic -Werror)
 
+add_executable(rbwr_http src/server/http_main.cpp)
+target_link_libraries(rbwr_http PRIVATE rbwr_core)
+target_compile_options(rbwr_http PRIVATE -Wall -Wextra -Wpedantic -Werror)
+
 add_executable(rbwr_cli src/cli/main.cpp)
 target_link_libraries(rbwr_cli PRIVATE rbwr_core)
 target_compile_options(rbwr_cli PRIVATE -Wall -Wextra -Wpedantic -Werror)

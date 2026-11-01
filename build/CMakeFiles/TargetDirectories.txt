@@ -1,5 +1,6 @@
 /workspaces/c-nucsim-engine/build/CMakeFiles/rbwr_core.dir
 /workspaces/c-nucsim-engine/build/CMakeFiles/rbwr_server.dir
+/workspaces/c-nucsim-engine/build/CMakeFiles/rbwr_http.dir
 /workspaces/c-nucsim-engine/build/CMakeFiles/rbwr_cli.dir
 /workspaces/c-nucsim-engine/build/CMakeFiles/Experimental.dir
 /workspaces/c-nucsim-engine/build/CMakeFiles/Nightly.dir

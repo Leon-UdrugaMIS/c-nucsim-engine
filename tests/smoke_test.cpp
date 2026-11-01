@@ -155,5 +155,20 @@ int main() {
   assert(!scenarios.load_scenario("unknown"));
   assert(scenarios.load_scenario("scram_recovery"));
   assert(scenarios.malfunction_active("rps.scram_active"));
+  const auto annunciators = scenarios.snapshot().annunciators;
+  assert(annunciators.size() >= 130);
+  assert(annunciators.at("ann.elec.startup_transformer_overload").state == "NORMAL");
+  assert(annunciators.at("ann.eccs.lpci_available").state == "NORMAL");
+  assert(annunciators.at("ann.rmcp.high_rpv_pressure").state == "NORMAL");
+  assert(annunciators.at("ann.recirc.pump1_cavitation").state == "NORMAL");
+  assert(annunciators.at("ann.turb.generator_reverse_power").state == "NORMAL");
+  assert(annunciators.at("ann.cond.offgas_open").state == "NORMAL");
+  assert(annunciators.at("ann.dea.low_low_water_level").state == "NORMAL");
+  const std::string pressure_before_fault = scenarios.snapshot().tags.at("reactor.pressure_kpa").value;
+  scenarios.inject_malfunction("mf.sensor.reactor.pressure_kpa.dead");
+  assert(scenarios.snapshot().tags.at("reactor.pressure_kpa").value == "null");
+  assert(scenarios.snapshot().tags.at("reactor.pressure_kpa").quality == "BAD");
+  scenarios.inject_malfunction("mf.sensor.reactor.pressure_kpa.dead", false);
+  assert(scenarios.snapshot().tags.at("reactor.pressure_kpa").value == pressure_before_fault);
   return 0;
 }

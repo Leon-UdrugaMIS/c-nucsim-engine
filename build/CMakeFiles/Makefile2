@@ -65,6 +65,7 @@ CMAKE_BINARY_DIR = /workspaces/c-nucsim-engine/build
 # The main recursive "all" target.
 all: CMakeFiles/rbwr_core.dir/all
 all: CMakeFiles/rbwr_server.dir/all
+all: CMakeFiles/rbwr_http.dir/all
 all: CMakeFiles/rbwr_cli.dir/all
 all: CMakeFiles/rbwr_tests.dir/all
 .PHONY : all
@@ -76,6 +77,7 @@ preinstall:
 # The main recursive "clean" target.
 clean: CMakeFiles/rbwr_core.dir/clean
 clean: CMakeFiles/rbwr_server.dir/clean
+clean: CMakeFiles/rbwr_http.dir/clean
 clean: CMakeFiles/rbwr_cli.dir/clean
 clean: CMakeFiles/Experimental.dir/clean
 clean: CMakeFiles/Nightly.dir/clean
@@ -141,7 +143,7 @@ CMakeFiles/rbwr_core.dir/clean:
 CMakeFiles/rbwr_server.dir/all: CMakeFiles/rbwr_core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_server.dir/build.make CMakeFiles/rbwr_server.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_server.dir/build.make CMakeFiles/rbwr_server.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/workspaces/c-nucsim-engine/build/CMakeFiles --progress-num=5,6 "Built target rbwr_server"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/workspaces/c-nucsim-engine/build/CMakeFiles --progress-num=7,8 "Built target rbwr_server"
 .PHONY : CMakeFiles/rbwr_server.dir/all
 
 # Build rule for subdir invocation for target.
@@ -159,6 +161,32 @@ rbwr_server: CMakeFiles/rbwr_server.dir/rule
 CMakeFiles/rbwr_server.dir/clean:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_server.dir/build.make CMakeFiles/rbwr_server.dir/clean
 .PHONY : CMakeFiles/rbwr_server.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/rbwr_http.dir
+
+# All Build rule for target.
+CMakeFiles/rbwr_http.dir/all: CMakeFiles/rbwr_core.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_http.dir/build.make CMakeFiles/rbwr_http.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_http.dir/build.make CMakeFiles/rbwr_http.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/workspaces/c-nucsim-engine/build/CMakeFiles --progress-num=5,6 "Built target rbwr_http"
+.PHONY : CMakeFiles/rbwr_http.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/rbwr_http.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /workspaces/c-nucsim-engine/build/CMakeFiles 4
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/rbwr_http.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /workspaces/c-nucsim-engine/build/CMakeFiles 0
+.PHONY : CMakeFiles/rbwr_http.dir/rule
+
+# Convenience name for target.
+rbwr_http: CMakeFiles/rbwr_http.dir/rule
+.PHONY : rbwr_http
+
+# clean rule for target.
+CMakeFiles/rbwr_http.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_http.dir/build.make CMakeFiles/rbwr_http.dir/clean
+.PHONY : CMakeFiles/rbwr_http.dir/clean
 
 #=============================================================================
 # Target rules for target CMakeFiles/rbwr_cli.dir
@@ -921,7 +949,7 @@ CMakeFiles/ContinuousSubmit.dir/clean:
 CMakeFiles/rbwr_tests.dir/all: CMakeFiles/rbwr_core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_tests.dir/build.make CMakeFiles/rbwr_tests.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_tests.dir/build.make CMakeFiles/rbwr_tests.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/workspaces/c-nucsim-engine/build/CMakeFiles --progress-num=7,8 "Built target rbwr_tests"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/workspaces/c-nucsim-engine/build/CMakeFiles --progress-num=9,10 "Built target rbwr_tests"
 .PHONY : CMakeFiles/rbwr_tests.dir/all
 
 # Build rule for subdir invocation for target.

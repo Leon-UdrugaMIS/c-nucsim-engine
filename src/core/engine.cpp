@@ -34,6 +34,25 @@ Engine::Engine(std::string version)
   for (int rod = 1; rod <= 24; ++rod) {
     analog_state_[std::string("rod.") + (rod < 10 ? "0" : "") + std::to_string(rod) + ".pos_pct"] = 0.0;
   }
+  const std::vector<std::pair<std::string, double>> nominal_telemetry = {
+      {"turb.oil_temp_c", 48.0}, {"turb.oil_pressure_kpa", 250.0},
+      {"turb.hydraulic_pressure_kpa", 9500.0}, {"env.outside_temp_c", 18.0},
+      {"env.outside_humidity_pct", 55.0}, {"turb.vibration_um", 35.0},
+      {"turb.diff_expansion_mm", 3.0}, {"turb.axial_pressure_kpa", 1800.0},
+      {"turb.radial_pressure_kpa", 1500.0}, {"turb.steam_seal_pressure_kpa", 130.0},
+      {"turb.generator_temp_c", 85.0}, {"turb.main_steam_pressure_kpa", 7100.0},
+      {"turb.main_steam_temp_c", 286.0}, {"turb.hpt1_intake_pct", 85.0},
+      {"turb.lpt1_intake_pct", 80.0}, {"turb.lpt2_intake_pct", 80.0},
+      {"turb.lpt3_intake_pct", 80.0}, {"fw.temp_c", 215.0},
+      {"wt.pol1_level_pct", 90.0}, {"wt.pol2_level_pct", 90.0},
+      {"wt.polisher_outflow_kgs", 1500.0}, {"dea.temp_c", 170.0},
+      {"dea.pressure_kpa", 800.0}, {"dea.dissolved_o2_ppb", 5.0},
+      {"reactor.xe135_pct", 100.0}, {"reactor.i135_pct", 100.0},
+      {"fuel.remaining_pct", 100.0}, {"nuc.period_avg_s", 1000.0},
+      {"nuc.aprm_pct", 0.0}, {"nuc.irm_pct", 0.0}, {"nuc.srm_period_s", 1000.0},
+      {"nuc.srm_depth_pct", 100.0}, {"tower.level_pct", 70.0},
+      {"cond.circ_valve_pct", 70.0}, {"cond.circ_flow_kgs", 22000.0}};
+  for (const auto& [id, value] : nominal_telemetry) analog_state_[id] = value;
   const auto add = [this](const std::string& id, const std::string& type,
                           const std::string& value,
                           Role role = Role::operator_role,
@@ -76,6 +95,85 @@ Engine::Engine(std::string version)
       {"OPEN", "CLOSED"});
   add("eccs.rhr2_injection_valve", "selector", "CLOSED", Role::operator_role,
       {"OPEN", "CLOSED"});
+    add("crd.accumulator_valve", "selector", "CLOSED", Role::operator_role,
+      {"CLOSED", "REFILL"});
+    add("crd.flow_selector", "rate_switch", "/", Role::operator_role,
+      {"-", "/", "+"});
+    add("elec.unit_interlock_52", "toggle", "false");
+    add("elec.main_circuit_breaker", "toggle", "false");
+    add("elec.dc_bus_source", "selector", "SAFETY", Role::operator_role,
+      {"EMERGENCY", "SAFETY"});
+    add("elec.rolldown_protection", "toggle", "false");
+    add("elec.edg_emergency_trip", "guarded_button", "false");
+    add("eccs.rcic_steam_inlet", "rate_switch", "/", Role::operator_role,
+      {"-", "/", "+"});
+    add("eccs.cst_selector", "selector", "BOTH", Role::operator_role,
+      {"BOTH", "1", "2"});
+    add("ads.system_inhibit", "toggle", "false");
+    add("wt.pol_info_selector", "selector", "POL1", Role::operator_role,
+      {"POL1", "POL2"});
+    add("wt.polisher_selector", "selector", "BOTH", Role::operator_role,
+      {"1", "2", "BOTH"});
+    add("mcc.autocontrol", "toggle", "false");
+    add("mcc.reset_setpoints", "button", "false");
+    add("mcc.condensate_outflow", "rate_switch", "/", Role::operator_role,
+      {"--", "-", "/", "+", "++"});
+    add("mcc.fw_inlet1", "toggle", "false");
+    add("mcc.fw_outlet1", "toggle", "false");
+    add("mcc.fw_inlet2", "toggle", "false");
+    add("mcc.fw_outlet2", "toggle", "false");
+    add("mcc.fw_pump1_speed", "rate_switch", "/", Role::operator_role,
+      {"--", "-", "/", "+", "++"});
+    add("mcc.fw_pump2_speed", "rate_switch", "/", Role::operator_role,
+      {"--", "-", "/", "+", "++"});
+    add("mcc.hp_fw_preheater1", "toggle", "false");
+    add("mcc.hp_fw_preheater2", "toggle", "false");
+    add("mcc.hp_fw_preheater3", "toggle", "false");
+    add("rmcp.rod_control_mode", "selector", "GROUP", Role::operator_role,
+      {"GROUP", "ALL RODS"});
+    add("rmcp.auto_rod_balancer", "selector", "OFF", Role::operator_role,
+      {"OFF", "SLOW", "FAST"});
+    add("rmcp.control_mode", "selector", "RODS", Role::operator_role,
+      {"RECIRC", "RODS", "GROUP"});
+    add("recirc.outlet1", "toggle", "false");
+    add("recirc.inlet1", "toggle", "false");
+    add("recirc.pump1", "toggle", "false");
+    add("recirc.pump1_speed", "rate_switch", "/", Role::operator_role,
+      {"--", "-", "/", "+", "++"});
+    add("recirc.outlet2", "toggle", "false");
+    add("recirc.inlet2", "toggle", "false");
+    add("recirc.pump2", "toggle", "false");
+    add("recirc.pump2_speed", "rate_switch", "/", Role::operator_role,
+      {"--", "-", "/", "+", "++"});
+    add("turb.precise_inlet", "rate_switch", "/", Role::operator_role,
+      {"--", "-", "/", "+", "++"});
+    add("turb.control_valve", "rate_switch", "/", Role::operator_role,
+      {"-", "/", "+"});
+    add("turb.steam_bypass_valve", "rate_switch", "/", Role::operator_role,
+      {"-", "/", "+"});
+    add("cond.circ_pump1_breaker", "toggle", "false");
+    add("cond.circ_pump2_breaker", "toggle", "false");
+    add("cond.circ_pump_valve", "rate_switch", "/", Role::operator_role,
+      {"--", "-", "/", "+", "++"});
+    add("cond.car_pump1_breaker", "toggle", "false");
+    add("cond.car_pump2_breaker", "toggle", "false");
+    add("cond.sjae1_breaker", "toggle", "false");
+    add("cond.sjae1_valve", "rate_switch", "/", Role::operator_role,
+      {"-", "/", "+"});
+    add("cond.sjae2_breaker", "toggle", "false");
+    add("cond.sjae2_valve", "rate_switch", "/", Role::operator_role,
+      {"-", "/", "+"});
+    add("tower.makeup_pump_breaker", "toggle", "false");
+    add("tower.makeup_speed_valve", "rate_switch", "/", Role::operator_role,
+      {"--", "-", "/", "+", "++"});
+    add("tower.cond_to_atm_valve", "rate_switch", "/", Role::operator_role,
+      {"--", "-", "/", "+", "++"});
+    add("dea.auto_control", "toggle", "false");
+    add("dea.emergency_steam_inlet_fast_close", "guarded_button", "false");
+    add("dea.gas_out_valve", "rate_switch", "/", Role::operator_role,
+      {"-", "/", "+"});
+    add("dea.steam_in_valve", "rate_switch", "/", Role::operator_role,
+      {"-", "/", "+"});
   add("sim.pause", "sim", "false", Role::instructor);
   add("sim.resume", "sim", "false", Role::instructor);
   add("sim.speed", "sim", "1.0", Role::instructor);
@@ -83,6 +181,76 @@ Engine::Engine(std::string version)
                          "ann.elec.offsite_power_connection_loss", "ann.rps.reactor_trip_state",
                          "ann.crd.drive_water_pressure_low"})
     state_.annunciators[id] = {};
+  const std::vector<std::string> annunciator_ids = {
+      "ann.crd.hcu_accumulators_pressure_low", "ann.crd.water_pressure_low",
+      "ann.cst.cst1_high_level", "ann.cst.cst2_high_level", "ann.cst.cst1_low_level",
+      "ann.cst.cst2_low_level", "ann.cst.rcic_suction_from_cst", "ann.cst.cst1_drain",
+      "ann.cst.cst2_drain", "ann.cst.cst1_makeup", "ann.cst.cst2_makeup",
+      "ann.elec.islanding_mode_configuration", "ann.elec.startup_transformer_breaker_closed",
+      "ann.elec.startup_transformer_overload", "ann.elec.main_circuit_breaker_open",
+      "ann.elec.edg_not_preheated", "ann.elec.dc_bus_main_battery_active",
+      "ann.elec.main_battery_critically_low", "ann.elec.bus_b_unpowered",
+      "ann.elec.auto_startup_not_available", "ann.elec.dc_bus_unpowered",
+      "ann.elec.rolldown_main_bus_breaker_protection_trouble",
+      "ann.elec.unit_interlock_receiving_power", "ann.elec.edg2_startup_process",
+      "ann.elec.diesel_generator_active", "ann.elec.generator_short_circuit",
+      "ann.elec.unit_interlock_sending_power", "ann.elec.edg1_startup_process",
+      "ann.eccs.sdc1_active", "ann.eccs.sdc2_active", "ann.eccs.lpci_available",
+      "ann.eccs.rcic_turbopump_enabled", "ann.eccs.rcic_turbine_running",
+      "ann.eccs.lpci_active", "ann.eccs.low_reactor_water_level",
+      "ann.ads.arm_failure_disarmed", "ann.ads.srv1_open", "ann.ads.srv2_open",
+      "ann.ads.system_out_of_service", "ann.ads.system_armed", "ann.srv.srv12_open",
+      "ann.srv.srv34_open", "ann.srv.srv56_open",
+      "ann.wt.polisher1_conductivity_high", "ann.wt.polisher2_conductivity_high",
+      "ann.wt.polisher1_dp_high", "ann.wt.polisher2_dp_high",
+      "ann.wt.condensate_polisher_bypass", "ann.wt.polisher1_regen_in_progress",
+      "ann.wt.polisher2_regen_in_progress", "ann.mcc.low_hotwell_level",
+      "ann.mcc.hotwell_water_drain", "ann.mcc.high_feedwater_heater_disabled",
+      "ann.mcc.high_reactor_water_level", "ann.mcc.low_deaerator_water_level",
+      "ann.mcc.deaerator_water_drain", "ann.mcc.low_feedwater_temperature",
+      "ann.mcc.eccs_mcc_conflict", "ann.mcc.reactor_water_drain",
+      "ann.mcc.exposed_fuel_rods", "ann.mcc.hotwell_makeup_pumps_active",
+      "ann.mcc.feedwater_pump_temperature_low", "ann.mcc.feedwater_pump_overheat",
+      "ann.mcc.feedwater_pump_trip", "ann.rps.manual_trip", "ann.rps.auto_trip",
+      "ann.rps.reactor_pressure_high_trip", "ann.rps.offsite_power_loss_trip",
+      "ann.rps.aprm_upscale_trip", "ann.rps.aprm_downscale_trip",
+      "ann.rps.lprm_upscale_trip", "ann.rps.lprm_low_period_trip",
+      "ann.rps.low_period_trip", "ann.rps.reactor_level_low_trip",
+      "ann.rps.mode_switch_shutdown_trip", "ann.aux.shutdown_cooling_in_service_fault",
+      "ann.aux.scram_not_available", "ann.aux.rod_drive_water_pressure_low",
+      "ann.aux.insufficient_drive_water_pressure", "ann.aux.high_i135_concentration",
+      "ann.aux.high_xe135_concentration", "ann.rmcp.low_reactor_thermal_power",
+      "ann.rmcp.low_reactor_period", "ann.rmcp.rps_channel_a_trip",
+      "ann.rmcp.high_reactor_water_level", "ann.rmcp.low_local_reactor_period",
+      "ann.rmcp.rpv_mechanically_inoperable", "ann.rmcp.high_apr_thermal_power",
+      "ann.rmcp.high_lprm_thermal_power", "ann.rmcp.high_rod_power",
+      "ann.rmcp.rps_channel_b_trip", "ann.rmcp.rpv_rod_drive_unserviceable",
+      "ann.rmcp.rods_temperature_imbalance", "ann.rmcp.reactor_water_drain",
+      "ann.rmcp.high_rpv_pressure", "ann.rmcp.core_neutron_flux_low",
+      "ann.rmcp.rcic_turbine_operational", "ann.rmcp.lpci_system_active",
+      "ann.rmcp.reactor_automatic_control", "ann.rmcp.shutdown_cooling_system",
+      "ann.rad.turbine_hall_high", "ann.rad.condenser_area_high",
+      "ann.rad.reactor_hall_high", "ann.rad.turbine_secondary_hall_high",
+      "ann.rad.condenser_secondary_area_high", "ann.rad.reactor_secondary_hall_high",
+      "ann.recirc.pump1_cavitation", "ann.recirc.pump2_cavitation",
+      "ann.recirc.no_water_flow", "ann.recirc.low_water_flow",
+      "ann.recirc.flow_balance", "ann.turb.no_condenser_vacuum",
+      "ann.turb.high_turbine_vibration", "ann.turb.bypass_valve_open",
+      "ann.turb.main_circuit_breaker_open", "ann.turb.high_turbine_rpm",
+      "ann.turb.high_generator_load", "ann.turb.high_radiation_sensor8",
+      "ann.turb.generator_reverse_power", "ann.turb.generator_short_circuit",
+      "ann.turb.no_rotor_excitation_field", "ann.turb.turbine_trip",
+      "ann.turb.high_main_steam_temperature", "ann.turb.high_main_steam_pressure",
+      "ann.turb.smoke_detected", "ann.cond.sjae_disabled", "ann.cond.high_vacuum",
+      "ann.cond.low_vacuum", "ann.cond.offgas_open", "ann.cond.steam_condensation_ineffective",
+      "ann.cond.hotwell_water_drain", "ann.cond.circ_pump_demand_trouble",
+      "ann.cond.hotwell_level_control_valve_open", "ann.cond.hotwell_makeup_valve_open",
+      "ann.cond.low_water_level", "ann.tower.water_level_high", "ann.tower.water_level_low",
+      "ann.tower.outside_temperature_high", "ann.dea.pressure_low", "ann.dea.pressure_high",
+      "ann.dea.temperature_high", "ann.dea.temperature_low", "ann.dea.water_drain",
+      "ann.dea.low_low_water_level", "ann.dea.rupture_disk_trouble",
+      "ann.dea.low_water_level", "ann.dea.deaeration_ineffective", "ann.dea.autocontrol"};
+  for (const auto& id : annunciator_ids) state_.annunciators.emplace(id, AnnunciatorState{});
   publish_state();
   evaluate_annunciators();
 }
@@ -611,6 +779,63 @@ void Engine::publish_state() {
     const std::string id = std::string("rod.") + (rod < 10 ? "0" : "") + std::to_string(rod) + ".pos_pct";
     state_.tags[id] = {number(analog_state_[id]), "%", "GOOD"};
   }
+  const std::vector<std::pair<std::string, std::string>> telemetry = {
+      {"turb.oil_temp_c", "C"}, {"turb.oil_pressure_kpa", "kPa"},
+      {"turb.hydraulic_pressure_kpa", "kPa"}, {"env.outside_temp_c", "C"},
+      {"env.outside_humidity_pct", "%"}, {"turb.vibration_um", "um"},
+      {"turb.diff_expansion_mm", "mm"}, {"turb.axial_pressure_kpa", "kPa"},
+      {"turb.radial_pressure_kpa", "kPa"}, {"turb.steam_seal_pressure_kpa", "kPa"},
+      {"turb.generator_temp_c", "C"}, {"turb.main_steam_pressure_kpa", "kPa"},
+      {"turb.main_steam_temp_c", "C"}, {"turb.bypass_valve_flow_kgs", "kg/s"},
+      {"turb.valve_steam_flow_kgs", "kg/s"}, {"turb.hpt1_intake_pct", "%"},
+      {"turb.lpt1_intake_pct", "%"}, {"turb.lpt2_intake_pct", "%"},
+      {"turb.lpt3_intake_pct", "%"}, {"elec.startup_tr_load_mw", "MW"},
+      {"elec.main_tr_load_mw", "MW"}, {"elec.edg2_rpm", "rpm"},
+      {"cst.inflow_kgs", "kg/s"}, {"cst.outflow_kgs", "kg/s"},
+      {"reactor.temp_change_rate_cph", "C/h"}, {"crd.flow_kgs", "kg/s"},
+      {"fw.total_flow_kgs", "kg/s"}, {"fw.temp_c", "C"},
+      {"fw.pump1_temp_c", "C"}, {"fw.pump2_temp_c", "C"},
+      {"fw.pump1_flow_kgs", "kg/s"}, {"fw.pump2_flow_kgs", "kg/s"},
+      {"fw.pump1_valve_pct", "%"}, {"fw.pump2_valve_pct", "%"},
+      {"wt.pol1_level_pct", "%"}, {"wt.pol2_level_pct", "%"},
+      {"wt.polisher_outflow_kgs", "kg/s"}, {"mcc.hotwell_makeup_pump_pct", "%"},
+      {"mcc.hotwell_level_ctrl_valve_pct", "%"}, {"mcc.sp_hotwell_level_pct", "%"},
+      {"mcc.sp_reactor_level_m", "m"}, {"mcc.sp_dea_level_pct", "%"},
+      {"cond.steam_flow_kgs", "kg/s"}, {"cond.outflow_kgs", "kg/s"},
+      {"cond.valve_pct", "%"}, {"cond.circ_valve_pct", "%"},
+      {"cond.circ_flow_kgs", "kg/s"}, {"cond.sjae1_pct", "%"},
+      {"cond.sjae2_pct", "%"}, {"tower.makeup_pct", "%"},
+      {"tower.level_change_pct_per_min", "%/min"}, {"tower.level_pct", "%"},
+      {"tower.cond_to_atm_valve_pct", "%"}, {"dea.outlet_valve_pct", "%"},
+      {"dea.inlet_valve_pct", "%"}, {"dea.gas_inflow_kgs", "kg/s"},
+      {"dea.gas_outflow_kgs", "kg/s"}, {"dea.temp_c", "C"},
+      {"dea.pressure_kpa", "kPa"}, {"dea.flow_kgs", "kg/s"},
+      {"dea.dissolved_o2_ppb", "ppb"}, {"reactor.xe135_pct", "%"},
+      {"reactor.i135_pct", "%"}, {"fuel.remaining_pct", "%"},
+      {"nuc.irm_pct", "%"}, {"nuc.period_avg_s", "s"},
+      {"nuc.aprm_pct", "%"}, {"nuc.srm_period_s", "s"},
+      {"nuc.srm_depth_pct", "%"}, {"nuc.srm_reading", "decades"},
+      {"recirc.pump1_valve_pct", "%"}, {"recirc.pump2_valve_pct", "%"},
+      {"recirc.pump1_flow_kgs", "kg/s"}, {"recirc.pump2_flow_kgs", "kg/s"},
+      {"pool.supp_temp_c", "C"}, {"pool.supp_level_pct", "%"}};
+  for (const auto& [id, unit] : telemetry)
+    state_.tags[id] = {number(analog_state_[id]), unit, "GOOD"};
+  for (auto& [id, tag] : state_.tags) {
+    const std::string prefix = "mf.sensor." + id + ".";
+    if (malfunction_active(prefix + "dead")) {
+      tag.value = "null";
+      tag.quality = "BAD";
+    } else if (malfunction_active(prefix + "zero")) {
+      tag.value = "0";
+      tag.quality = "SUBSTITUTED";
+    } else if (malfunction_active(prefix + "low")) {
+      tag.value = "0";
+      tag.quality = "SUBSTITUTED";
+    } else if (malfunction_active(prefix + "high")) {
+      tag.value = "1";
+      tag.quality = "SUBSTITUTED";
+    }
+  }
   double site_usage = safety ? 1.0 : 0.0;
   site_usage += bus_a && control_value("crd.pump1") ? 0.8 : 0.0;
   site_usage += bus_a && control_value("crd.pump2") ? 0.8 : 0.0;
@@ -641,6 +866,19 @@ void Engine::publish_state() {
   state_.tags["crd.drive_water_pressure_kpa"] =
       {number(analog_state_["crd.drive_water_pressure_kpa"]), "kPa", "GOOD"};
   state_.tags["alarm.audible_active"] = {"false", "", "GOOD"};
+  for (auto& [id, tag] : state_.tags) {
+    const std::string prefix = "mf.sensor." + id + ".";
+    if (malfunction_active(prefix + "dead")) {
+      tag.value = "null";
+      tag.quality = "BAD";
+    } else if (malfunction_active(prefix + "zero") || malfunction_active(prefix + "low")) {
+      tag.value = "0";
+      tag.quality = "SUBSTITUTED";
+    } else if (malfunction_active(prefix + "high")) {
+      tag.value = "1";
+      tag.quality = "SUBSTITUTED";
+    }
+  }
 }
 
 void Engine::evaluate_annunciators() {
