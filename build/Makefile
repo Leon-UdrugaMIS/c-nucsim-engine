@@ -179,6 +179,19 @@ rbwr_cli/fast:
 .PHONY : rbwr_cli/fast
 
 #=============================================================================
+# Target rules for targets named rbwr_docgen
+
+# Build rule for target.
+rbwr_docgen: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 rbwr_docgen
+.PHONY : rbwr_docgen
+
+# fast build rule for target.
+rbwr_docgen/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_docgen.dir/build.make CMakeFiles/rbwr_docgen.dir/build
+.PHONY : rbwr_docgen/fast
+
+#=============================================================================
 # Target rules for targets named Experimental
 
 # Build rule for target.
@@ -555,6 +568,30 @@ rbwr_tests/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_tests.dir/build.make CMakeFiles/rbwr_tests.dir/build
 .PHONY : rbwr_tests/fast
 
+src/cli/docgen.o: src/cli/docgen.cpp.o
+.PHONY : src/cli/docgen.o
+
+# target to build an object file
+src/cli/docgen.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_docgen.dir/build.make CMakeFiles/rbwr_docgen.dir/src/cli/docgen.cpp.o
+.PHONY : src/cli/docgen.cpp.o
+
+src/cli/docgen.i: src/cli/docgen.cpp.i
+.PHONY : src/cli/docgen.i
+
+# target to preprocess a source file
+src/cli/docgen.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_docgen.dir/build.make CMakeFiles/rbwr_docgen.dir/src/cli/docgen.cpp.i
+.PHONY : src/cli/docgen.cpp.i
+
+src/cli/docgen.s: src/cli/docgen.cpp.s
+.PHONY : src/cli/docgen.s
+
+# target to generate assembly for a file
+src/cli/docgen.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_docgen.dir/build.make CMakeFiles/rbwr_docgen.dir/src/cli/docgen.cpp.s
+.PHONY : src/cli/docgen.cpp.s
+
 src/cli/main.o: src/cli/main.cpp.o
 .PHONY : src/cli/main.o
 
@@ -602,6 +639,30 @@ src/core/engine.s: src/core/engine.cpp.s
 src/core/engine.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_core.dir/build.make CMakeFiles/rbwr_core.dir/src/core/engine.cpp.s
 .PHONY : src/core/engine.cpp.s
+
+src/core/physics.o: src/core/physics.cpp.o
+.PHONY : src/core/physics.o
+
+# target to build an object file
+src/core/physics.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_core.dir/build.make CMakeFiles/rbwr_core.dir/src/core/physics.cpp.o
+.PHONY : src/core/physics.cpp.o
+
+src/core/physics.i: src/core/physics.cpp.i
+.PHONY : src/core/physics.i
+
+# target to preprocess a source file
+src/core/physics.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_core.dir/build.make CMakeFiles/rbwr_core.dir/src/core/physics.cpp.i
+.PHONY : src/core/physics.cpp.i
+
+src/core/physics.s: src/core/physics.cpp.s
+.PHONY : src/core/physics.s
+
+# target to generate assembly for a file
+src/core/physics.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/rbwr_core.dir/build.make CMakeFiles/rbwr_core.dir/src/core/physics.cpp.s
+.PHONY : src/core/physics.cpp.s
 
 src/server/http_main.o: src/server/http_main.cpp.o
 .PHONY : src/server/http_main.o
@@ -714,15 +775,22 @@ help:
 	@echo "... NightlyUpdate"
 	@echo "... rbwr_cli"
 	@echo "... rbwr_core"
+	@echo "... rbwr_docgen"
 	@echo "... rbwr_http"
 	@echo "... rbwr_server"
 	@echo "... rbwr_tests"
+	@echo "... src/cli/docgen.o"
+	@echo "... src/cli/docgen.i"
+	@echo "... src/cli/docgen.s"
 	@echo "... src/cli/main.o"
 	@echo "... src/cli/main.i"
 	@echo "... src/cli/main.s"
 	@echo "... src/core/engine.o"
 	@echo "... src/core/engine.i"
 	@echo "... src/core/engine.s"
+	@echo "... src/core/physics.o"
+	@echo "... src/core/physics.i"
+	@echo "... src/core/physics.s"
 	@echo "... src/server/http_main.o"
 	@echo "... src/server/http_main.i"
 	@echo "... src/server/http_main.s"

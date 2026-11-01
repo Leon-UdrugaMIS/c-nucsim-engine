@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_library(rbwr_core STATIC src/core/engine.cpp)
+add_library(rbwr_core STATIC src/core/engine.cpp src/core/physics.cpp)
 target_include_directories(rbwr_core PUBLIC include)
 target_compile_options(rbwr_core PRIVATE -Wall -Wextra -Wpedantic -Werror)
 
@@ -20,6 +20,10 @@ target_compile_options(rbwr_http PRIVATE -Wall -Wextra -Wpedantic -Werror)
 add_executable(rbwr_cli src/cli/main.cpp)
 target_link_libraries(rbwr_cli PRIVATE rbwr_core)
 target_compile_options(rbwr_cli PRIVATE -Wall -Wextra -Wpedantic -Werror)
+
+add_executable(rbwr_docgen src/cli/docgen.cpp)
+target_link_libraries(rbwr_docgen PRIVATE rbwr_core)
+target_compile_options(rbwr_docgen PRIVATE -Wall -Wextra -Wpedantic -Werror)
 
 include(CTest)
 if(BUILD_TESTING)

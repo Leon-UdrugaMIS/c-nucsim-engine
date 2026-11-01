@@ -1,4 +1,5 @@
 #include "rbwr/engine.hpp"
+#include "rbwr/physics.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -524,6 +525,20 @@ std::vector<std::string> Engine::annunciator_ids() const {
   return result;
 }
 
+std::vector<std::string> Engine::component_ids() const {
+  return {"elec.xfmr.startup", "elec.xfmr.main", "elec.bus.a", "elec.bus.b",
+          "elec.bus.s", "elec.bus.emerg", "elec.bus.dc", "elec.edg.1", "elec.edg.2",
+          "elec.battery.main", "elec.gen.tg2", "rx.core", "rx.sep_dryer",
+          "rx.downcomer", "recirc.pump.1", "recirc.pump.2", "crd.pump.1", "crd.pump.2",
+          "crd.header", "eccs.rcic.turbine", "eccs.rcic.pump", "eccs.rhr.pump.l",
+          "eccs.rhr.pump.r", "ads.srv.1", "ads.srv.2", "turb.hpt", "turb.msr",
+          "turb.lpt.1", "turb.lpt.2", "turb.lpt.3", "turb.generator", "cond.shell",
+          "cond.hotwell", "cond.circ_pump.1", "cond.circ_pump.2", "cond.car_pump.1",
+          "cond.car_pump.2", "cond.sjae.1", "cond.sjae.2", "wt.polisher.1",
+          "wt.polisher.2", "dea.vessel", "fw.pump.1", "fw.pump.2", "cst.tank.1",
+          "cst.tank.2", "tower.basin"};
+}
+
 std::vector<Event> Engine::events_since(std::uint64_t tick) const {
   std::vector<Event> result;
   for (const auto& event : events_) {
@@ -666,21 +681,30 @@ void Engine::update_process(double dt) {
     }
     const bool condensate_available = safety &&
       (control_value("mcc.cond_pump1") || control_value("mcc.cond_pump2"));
+    const bool mcc_autocontrol = control_value("mcc.autocontrol");
     const bool feedwater_running = condensate_available &&
-      (control_value("mcc.fw_pump1") || control_value("mcc.fw_pump2")) &&
-      !malfunction_active("mf.fw.pump_trip");
+        (((control_value("mcc.fw_pump1") || control_value("mcc.fw_pump2")) &&
+          !malfunction_active("mf.fw.pump_trip")) ||
+         (mcc_autocontrol && !malfunction_active("mf.fw.pump_trip")));
     analog_state_["fw.flow_kgs"] = feedwater_running ? 1500.0 : 0.0;
+    const double dea_target = control_value("dea.auto_control") ? 60.0 :
+        (condensate_available ? 60.0 : 0.0);
+    const double hotwell_target = mcc_autocontrol ? 55.0 :
+        (feedwater_running ? 45.0 : 60.0);
     analog_state_["dea.level_pct"] = std::clamp(analog_state_["dea.level_pct"] +
-      (condensate_available ? 0.03 : -0.03) * dt, 0.0, 100.0);
-    analog_state_["cond.hotwell_level_pct"] = std::clamp(
-      analog_state_["cond.hotwell_level_pct"] +
-      (feedwater_running ? -0.03 : 0.01) * dt, 0.0, 100.0);
+        (dea_target - analog_state_["dea.level_pct"]) * std::clamp(dt * 0.1, 0.0, 1.0), 0.0, 100.0);
+      analog_state_["cond.hotwell_level_pct"] = std::clamp(
+        analog_state_["cond.hotwell_level_pct"] +
+        (hotwell_target - analog_state_["cond.hotwell_level_pct"]) * std::clamp(dt * 0.1, 0.0, 1.0),
+        0.0, 100.0);
+    const physics::PumpModel recirculation_pump(5625.0, 500.0, 4.5);
+    const double recirculation_flow = recirculation_pump.solve(100.0, 100.0, 100.0).flow_kgs;
       const bool recirc1_lined = control_value("recirc.inlet1") && control_value("recirc.outlet1");
       const bool recirc2_lined = control_value("recirc.inlet2") && control_value("recirc.outlet2");
       analog_state_["recirc.pump1_flow_kgs"] = bus_a && recirc1_lined &&
-        control_value("recirc.pump1") ? 4500.0 : 0.0;
+          control_value("recirc.pump1") ? recirculation_flow : 0.0;
       analog_state_["recirc.pump2_flow_kgs"] = bus_a && recirc2_lined &&
-        control_value("recirc.pump2") ? 4500.0 : 0.0;
+          control_value("recirc.pump2") ? recirculation_flow : 0.0;
   const bool crd_running = safety && (control_value("crd.pump1") || control_value("crd.pump2"));
   const double drive_pressure = crd_running ? 8500.0 : 0.0;
   const double reactor_power = analog_state_["nuc.rtp_pct"];
@@ -788,6 +812,8 @@ void Engine::update_process(double dt) {
   relief_flow += analog_state_["ads.srv1_open"] + analog_state_["ads.srv2_open"];
   analog_state_["reactor.pressure_kpa"] = std::max(
       101.3, analog_state_["reactor.pressure_kpa"] - relief_flow * 8.0 * dt);
+    analog_state_["turb.main_steam_temp_c"] =
+      physics::saturation_temperature_c(analog_state_["reactor.pressure_kpa"]);
     const bool feedwater_fault = malfunction_active("mf.fw.pump_trip") ||
       malfunction_active("mf.fw.valve_stuck");
     const double level_rate = feedwater_fault ? -0.04 : (crd_running ? 0.002 : 0.000);

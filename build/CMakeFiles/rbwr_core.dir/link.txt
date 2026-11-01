@@ -1,2 +1,2 @@
-/usr/bin/ar qc librbwr_core.a CMakeFiles/rbwr_core.dir/src/core/engine.cpp.o
+/usr/bin/ar qc librbwr_core.a CMakeFiles/rbwr_core.dir/src/core/engine.cpp.o CMakeFiles/rbwr_core.dir/src/core/physics.cpp.o
 /usr/bin/ranlib librbwr_core.a

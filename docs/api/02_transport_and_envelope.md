@@ -22,6 +22,7 @@ Available GET endpoints:
 - `/api/v1/controls`
 - `/api/v1/annunciators`
 - `/api/v1/malfunctions`
+- `/api/v1/components`
 - `/api/v1/scenarios`
 - `/api/v1/slots`
 

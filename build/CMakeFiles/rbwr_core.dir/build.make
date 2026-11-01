@@ -83,17 +83,33 @@ CMakeFiles/rbwr_core.dir/src/core/engine.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/rbwr_core.dir/src/core/engine.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /workspaces/c-nucsim-engine/src/core/engine.cpp -o CMakeFiles/rbwr_core.dir/src/core/engine.cpp.s
 
+CMakeFiles/rbwr_core.dir/src/core/physics.cpp.o: CMakeFiles/rbwr_core.dir/flags.make
+CMakeFiles/rbwr_core.dir/src/core/physics.cpp.o: /workspaces/c-nucsim-engine/src/core/physics.cpp
+CMakeFiles/rbwr_core.dir/src/core/physics.cpp.o: CMakeFiles/rbwr_core.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/workspaces/c-nucsim-engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/rbwr_core.dir/src/core/physics.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/rbwr_core.dir/src/core/physics.cpp.o -MF CMakeFiles/rbwr_core.dir/src/core/physics.cpp.o.d -o CMakeFiles/rbwr_core.dir/src/core/physics.cpp.o -c /workspaces/c-nucsim-engine/src/core/physics.cpp
+
+CMakeFiles/rbwr_core.dir/src/core/physics.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/rbwr_core.dir/src/core/physics.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /workspaces/c-nucsim-engine/src/core/physics.cpp > CMakeFiles/rbwr_core.dir/src/core/physics.cpp.i
+
+CMakeFiles/rbwr_core.dir/src/core/physics.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/rbwr_core.dir/src/core/physics.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /workspaces/c-nucsim-engine/src/core/physics.cpp -o CMakeFiles/rbwr_core.dir/src/core/physics.cpp.s
+
 # Object files for target rbwr_core
 rbwr_core_OBJECTS = \
-"CMakeFiles/rbwr_core.dir/src/core/engine.cpp.o"
+"CMakeFiles/rbwr_core.dir/src/core/engine.cpp.o" \
+"CMakeFiles/rbwr_core.dir/src/core/physics.cpp.o"
 
 # External object files for target rbwr_core
 rbwr_core_EXTERNAL_OBJECTS =
 
 librbwr_core.a: CMakeFiles/rbwr_core.dir/src/core/engine.cpp.o
+librbwr_core.a: CMakeFiles/rbwr_core.dir/src/core/physics.cpp.o
 librbwr_core.a: CMakeFiles/rbwr_core.dir/build.make
 librbwr_core.a: CMakeFiles/rbwr_core.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/workspaces/c-nucsim-engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX static library librbwr_core.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/workspaces/c-nucsim-engine/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking CXX static library librbwr_core.a"
 	$(CMAKE_COMMAND) -P CMakeFiles/rbwr_core.dir/cmake_clean_target.cmake
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/rbwr_core.dir/link.txt --verbose=$(VERBOSE)
 

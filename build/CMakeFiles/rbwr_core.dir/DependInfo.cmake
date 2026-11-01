@@ -9,6 +9,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/workspaces/c-nucsim-engine/src/core/engine.cpp" "CMakeFiles/rbwr_core.dir/src/core/engine.cpp.o" "gcc" "CMakeFiles/rbwr_core.dir/src/core/engine.cpp.o.d"
+  "/workspaces/c-nucsim-engine/src/core/physics.cpp" "CMakeFiles/rbwr_core.dir/src/core/physics.cpp.o" "gcc" "CMakeFiles/rbwr_core.dir/src/core/physics.cpp.o.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

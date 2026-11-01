@@ -1,6 +1,8 @@
 #include "rbwr/engine.hpp"
+#include "rbwr/physics.hpp"
 
 #include <cassert>
+#include <cmath>
 #include <cstdio>
 
 int main() {
@@ -261,5 +263,18 @@ int main() {
   assert(fuel.snapshot().tags.count("fa.01.l1.temp_c") == 1);
   assert(std::stod(fuel.snapshot().tags.at("fa.01.l1.temp_c").value) > 300.0);
   assert(fuel.snapshot().tags.count("reactor.decay_heat_mw") == 1);
+  assert(std::abs(rbwr::physics::saturation_pressure_kpa(100.0) - 101.325) < 1.0);
+  assert(rbwr::physics::saturation_temperature_c(7100.0) > 280.0);
+  rbwr::physics::PointKinetics kinetics;
+  kinetics.reset(1.0);
+  kinetics.step(0.01, 0.0005);
+  assert(kinetics.normalized_power() > 0.0);
+  const rbwr::physics::PumpModel pump(100.0, 500.0, 2.0);
+  const auto pump_result = pump.solve(100.0, 100.0, 10.0);
+  assert(pump_result.flow_kgs > 0.0);
+  assert(pump_result.cavitating);
+  const rbwr::physics::ValveModel valve(200.0, 20.0);
+  assert(valve.flow_kgs(100.0, 1000.0, 900.0) > valve.flow_kgs(50.0, 1000.0, 900.0));
+  assert(std::abs(valve.stroke_rate_pct_per_s() - 5.0) < 1.0e-9);
   return 0;
 }

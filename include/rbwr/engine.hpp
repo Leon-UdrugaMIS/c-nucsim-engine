@@ -80,6 +80,7 @@ class Engine {
   [[nodiscard]] std::vector<std::string> tag_ids() const;
   [[nodiscard]] std::vector<std::string> control_ids() const;
   [[nodiscard]] std::vector<std::string> annunciator_ids() const;
+  [[nodiscard]] std::vector<std::string> component_ids() const;
   [[nodiscard]] std::vector<Event> events_since(std::uint64_t tick) const;
   void inject_malfunction(const std::string& id, bool active = true);
   void set_rps_override(const std::string& trigger, bool enabled);

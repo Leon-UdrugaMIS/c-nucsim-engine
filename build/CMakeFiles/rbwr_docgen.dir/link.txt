@@ -1,0 +1,1 @@
+/usr/bin/c++ -g CMakeFiles/rbwr_docgen.dir/src/cli/docgen.cpp.o -o rbwr_docgen  librbwr_core.a 

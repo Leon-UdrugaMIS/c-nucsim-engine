@@ -16,6 +16,13 @@ Targets:
 - `rbwr_cli`: cold-start smoke scenario.
 - `rbwr_server`: newline-delimited JSON diagnostic transport on stdin/stdout.
 - `rbwr_tests`: core contract regression tests.
+- `rbwr_docgen`: generates live registry tables under `docs/GENERATED`.
+
+Generate registry documentation with:
+
+```sh
+./build/rbwr_docgen docs/GENERATED
+```
 
 ## Diagnostic server
 

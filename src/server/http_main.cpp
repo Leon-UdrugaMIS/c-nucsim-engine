@@ -110,6 +110,17 @@ std::string response_for(const std::string& target, const rbwr::Engine& engine) 
     output << "]}";
     return output.str();
   }
+  if (target == "/api/v1/components") {
+    std::ostringstream output;
+    output << "{\"components\":[";
+    const auto ids = engine.component_ids();
+    for (std::size_t index = 0; index < ids.size(); ++index) {
+      if (index != 0) output << ',';
+      output << "\"" << json_escape(ids[index]) << "\"";
+    }
+    output << "]}";
+    return output.str();
+  }
   if (target == "/api/v1/scenarios")
     return "{\"scenarios\":[\"cold_shutdown\",\"full_power\",\"scram_recovery\"]}";
   if (target == "/api/v1/slots") {

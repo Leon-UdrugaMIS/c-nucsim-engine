@@ -49,6 +49,7 @@ set(CMAKE_DEPEND_INFO_FILES
   "CMakeFiles/rbwr_server.dir/DependInfo.cmake"
   "CMakeFiles/rbwr_http.dir/DependInfo.cmake"
   "CMakeFiles/rbwr_cli.dir/DependInfo.cmake"
+  "CMakeFiles/rbwr_docgen.dir/DependInfo.cmake"
   "CMakeFiles/Experimental.dir/DependInfo.cmake"
   "CMakeFiles/Nightly.dir/DependInfo.cmake"
   "CMakeFiles/Continuous.dir/DependInfo.cmake"
