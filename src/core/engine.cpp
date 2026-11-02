@@ -418,6 +418,20 @@ CommandResult Engine::apply_command(const Command& command, Role role) {
     result.hint = "Close elec.startup_tr_breaker first";
     return result;
   }
+  if (command.control_id == "elec.bus_b_tr" && command.value == "true" &&
+      (!control_value("elec.main_circuit_breaker") || malfunctions_["mf.elec.loop"])) {
+    result.code = "ERR_INTERLOCK";
+    result.detail = "Main-grid source 3L5(A2) is not available";
+    result.hint = "Make the main-grid source available before closing elec.bus_b_tr";
+    return result;
+  }
+  if (command.control_id == "elec.edg_startup_request" &&
+      !control_value("elec.breaker_72dcg")) {
+    result.code = "ERR_INTERLOCK";
+    result.detail = "Breaker 72DCG is open; EDG remote start control power is unavailable";
+    result.hint = "Close elec.breaker_72dcg before requesting an EDG start";
+    return result;
+  }
   if ((command.control_id == "crd.pump1" || command.control_id == "crd.pump2") &&
       !control_value("elec.lvac_dc_tr")) {
     result.code = "ERR_UNPOWERED";
@@ -639,7 +653,9 @@ void Engine::update_rate_switches(double dt) {
 
 void Engine::update_process(double dt) {
   const bool offsite = !malfunction_active("mf.elec.loop");
-  const bool bus_a_source = offsite && control_value("elec.startup_tr_breaker");
+  const bool startup_source = offsite && control_value("elec.startup_tr_breaker");
+  const bool main_grid_source = offsite && control_value("elec.main_circuit_breaker");
+  const bool bus_a_source = startup_source || main_grid_source;
   const bool bus_a = bus_a_source && control_value("elec.bus_a_tr");
   const bool safety_from_ac = bus_a && control_value("elec.lvac_dc_tr");
   const bool edg_requested = edg_start_commanded_ ||
@@ -667,7 +683,7 @@ void Engine::update_process(double dt) {
   else if (!safety_from_ac && emergency_bus)
     analog_state_["elec.battery_pct"] = std::max(0.0, analog_state_["elec.battery_pct"] - 0.0069 * dt);
   analog_state_["elec.bus_a"] = bus_a ? 1.0 : 0.0;
-  analog_state_["elec.bus_b"] = bus_a_source && control_value("elec.bus_b_tr") ? 1.0 : 0.0;
+  analog_state_["elec.bus_b"] = main_grid_source && control_value("elec.bus_b_tr") ? 1.0 : 0.0;
   analog_state_["elec.bus_s"] = safety ? 1.0 : 0.0;
   analog_state_["elec.emergency_bus"] = emergency_bus ? 1.0 : 0.0;
     for (const char* tank_name : {"cst.cst1", "cst.cst2"}) {
@@ -887,6 +903,8 @@ bool Engine::save(const std::string& path) const {
   output << std::setprecision(17);
   output << info_.tick << '\n' << state_.sim_time << '\n' << state_.speed << '\n'
          << state_.paused << '\n';
+    output << "S " << scenario_ << " 1\n";
+    for (const int group : selected_groups_) output << "G " << group << " 1\n";
   for (const auto& [id, value] : controls_) output << "C " << id << ' ' << value << '\n';
   for (const auto& [id, active] : malfunctions_) output << "M " << id << ' ' << active << '\n';
   output << "R all " << rps_enabled_ << '\n';
@@ -914,7 +932,16 @@ bool Engine::load(const std::string& path) {
   char kind = 0;
   std::string id;
   std::string value;
+  selected_groups_.clear();
   while (input >> kind >> id >> value) {
+    if (kind == 'S') scenario_ = id;
+    if (kind == 'G') {
+      try {
+        selected_groups_.push_back(std::stoi(id));
+      } catch (...) {
+        return false;
+      }
+    }
     if (kind == 'C') controls_[id] = value;
     if (kind == 'M') malfunctions_[id] = value == "1";
     if (kind == 'R') {
@@ -932,6 +959,9 @@ bool Engine::load(const std::string& path) {
       }
     }
   }
+  std::sort(selected_groups_.begin(), selected_groups_.end());
+  selected_groups_.erase(std::unique(selected_groups_.begin(), selected_groups_.end()),
+                         selected_groups_.end());
   publish_state();
   evaluate_annunciators();
   return true;

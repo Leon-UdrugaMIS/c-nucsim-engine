@@ -42,6 +42,19 @@ std::string json_string_field(const std::string& body, const std::string& field)
   return body.substr(first_quote + 1, second_quote - first_quote - 1);
 }
 
+rbwr::Role request_role(const std::string& raw_request) {
+  const std::string header = "X-RBWR-Role:";
+  const std::size_t position = raw_request.find(header);
+  if (position == std::string::npos) return rbwr::Role::operator_role;
+  std::size_t value_start = position + header.size();
+  while (value_start < raw_request.size() && raw_request[value_start] == ' ') ++value_start;
+  const std::size_t value_end = raw_request.find_first_of("\r\n", value_start);
+  const std::string value = raw_request.substr(value_start, value_end - value_start);
+  if (value == "observer") return rbwr::Role::observer;
+  if (value == "instructor") return rbwr::Role::instructor;
+  return rbwr::Role::operator_role;
+}
+
 std::string snapshot_json(const rbwr::Engine& engine) {
   const auto snapshot = engine.snapshot();
   std::ostringstream output;
@@ -140,7 +153,7 @@ std::string response_for(const std::string& target, const rbwr::Engine& engine) 
 }
 
 std::string post_response(const std::string& target, const std::string& body,
-                          rbwr::Engine& engine, int& status) {
+                          rbwr::Engine& engine, rbwr::Role role, int& status) {
   try {
     if (target == "/api/v1/command") {
       const rbwr::Command command{json_string_field(body, "type"),
@@ -149,7 +162,7 @@ std::string post_response(const std::string& target, const std::string& body,
                                   json_string_field(body, "value")};
       if (command.type.empty() || command.control_id.empty())
         throw std::invalid_argument("command requires type and control_id");
-      const auto result = engine.apply_command(command, rbwr::Role::operator_role);
+      const auto result = engine.apply_command(command, role);
       status = result.ok ? 200 : 400;
       return "{\"ok\":" + std::string(result.ok ? "true" : "false") +
           ",\"req_id\":\"" + json_escape(result.req_id) + "\",\"code\":\"" +
@@ -158,6 +171,10 @@ std::string post_response(const std::string& target, const std::string& body,
           json_escape(result.new_value) + "\"}";
     }
             if (target == "/api/v1/malfunction") {
+                  if (role != rbwr::Role::instructor) {
+                    status = 403;
+                    return "{\"ok\":false,\"code\":\"ERR_ROLE\",\"detail\":\"Malfunction injection requires the instructor role\"}";
+                  }
           const std::string id = json_string_field(body, "id");
           const std::string active = json_string_field(body, "active");
           if (id.empty()) throw std::invalid_argument("malfunction requires id");
@@ -235,7 +252,7 @@ int main(int argc, char** argv) {
     const std::string request_body = separator == std::string::npos ? "" : raw_request.substr(separator + 4);
     int status = 200;
     const std::string body = method == "GET" ? response_for(target, engine) :
-      method == "POST" ? post_response(target, request_body, engine, status) : std::string();
+      method == "POST" ? post_response(target, request_body, engine, request_role(raw_request), status) : std::string();
     if (body.empty() && status == 200) status = 404;
     const std::string status_text = status == 200 ? "OK" : "Not Found";
     std::ostringstream response;

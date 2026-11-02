@@ -18,15 +18,20 @@ int main() {
     {"toggle", "35a", "elec.startup_tr_breaker", "true"}, rbwr::Role::operator_role).ok);
   assert(engine.apply_command(
     {"toggle", "busa", "elec.bus_a_tr", "true"}, rbwr::Role::operator_role).ok);
+  const auto bus_b_blocked = engine.apply_command(
+    {"toggle", "busb", "elec.bus_b_tr", "true"}, rbwr::Role::operator_role);
+  assert(!bus_b_blocked.ok && bus_b_blocked.code == "ERR_INTERLOCK");
   assert(engine.apply_command(
     {"toggle", "lvac", "elec.lvac_dc_tr", "true"}, rbwr::Role::operator_role).ok);
+  engine.step(0.05);
+  assert(engine.snapshot().tags.at("elec.bus.b.energized").value == "false");
   assert(engine.apply_command(
     {"toggle", "crd", "crd.pump1", "true"}, rbwr::Role::operator_role).ok);
   const auto rate = engine.apply_command(
     {"rate_switch", "rate", "rmcp.group_movement", "WITHDRAW"}, rbwr::Role::operator_role);
   assert(rate.ok);
   engine.step(0.05);
-  assert(engine.info().tick == 1);
+  assert(engine.info().tick == 2);
   assert(engine.snapshot().tags.at("elec.bus.s.energized").value == "true");
   engine.step(0.7);
   const auto events = engine.events_since(0);
@@ -41,6 +46,10 @@ int main() {
   assert(engine.malfunction_active("rps.scram_active"));
 
   rbwr::Engine emergency;
+  const auto edg_without_control_power = emergency.apply_command(
+      {"button", "edg-blocked", "elec.edg_startup_request", "true"},
+      rbwr::Role::operator_role);
+  assert(!edg_without_control_power.ok && edg_without_control_power.code == "ERR_INTERLOCK");
   for (const auto& command : {
            rbwr::Command{"toggle", "e1", "elec.startup_tr_breaker", "true"},
            rbwr::Command{"toggle", "e2", "elec.bus_a_tr", "true"},
@@ -112,10 +121,16 @@ int main() {
       {"toggle", "sync", "turb.gen_breaker_sync", "true"}, rbwr::Role::operator_role).ok);
     assert(turbine.snapshot().tags.at("elec.generator_load_mw").value != "0.000");
     const std::string save_path = "rbwr_engine_test.save";
+      assert(turbine.apply_command(
+        {"button", "group-3", "rmcp.group_select_3", "true"}, rbwr::Role::operator_role).ok);
     assert(turbine.save(save_path));
     const auto saved_pressure = turbine.snapshot().tags.at("reactor.pressure_kpa").value;
     turbine.step(1.0);
-    assert(turbine.load(save_path));
+      rbwr::Engine restored;
+      assert(restored.load(save_path));
+      assert(restored.scenario_name() == "cold_shutdown");
+      assert(restored.snapshot().tags.at("rmcp.selected_groups").value == "[3]");
+      assert(turbine.load(save_path));
     assert(turbine.snapshot().tags.at("reactor.pressure_kpa").value == saved_pressure);
     std::remove(save_path.c_str());
     const std::string slot_directory = "rbwr_test_slots";
